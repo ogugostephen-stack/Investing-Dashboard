@@ -67,7 +67,8 @@ section h2{font-size:16px!important}
 .card:hover{background:rgba(214,177,95,.055)!important}
 .kicker{color:var(--lux-gold)!important}
 table{border-collapse:separate!important;border-spacing:0!important}
-thead{position:sticky;top:70px;z-index:5}
+#wlTbl thead{position:sticky;top:70px;z-index:5}
+#reference thead,#detailPanel thead{position:static}
 th{background:#0c1119!important;border-bottom-color:rgba(255,255,255,.08)!important}
 td{border-bottom-color:rgba(255,255,255,.045)!important}
 tr:hover td{background:rgba(214,177,95,.035)!important}
@@ -141,4 +142,39 @@ button.compact{padding:6px 8px!important;font-size:11px!important}
   .site-footer{align-items:flex-start;flex-direction:column}
   .section-head{align-items:flex-start;flex-direction:column}
   .section-note{text-align:left}
+}
+
+/* Read-carefully / risk notes: deliberately isolated from table layout */
+#caveats{
+  display:block!important;
+  width:100%!important;
+  overflow:visible!important;
+  clear:both!important;
+}
+#caveats h2{margin-bottom:18px!important}
+#caveats .rec{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:10px!important;
+  margin:0!important;
+  padding:0!important;
+  list-style:none!important;
+}
+#caveats .rec li{
+  display:block!important;
+  margin:0!important;
+  padding:14px 15px!important;
+  min-width:0!important;
+  color:var(--lux-muted)!important;
+  background:rgba(255,255,255,.018)!important;
+  border:1px solid rgba(255,255,255,.055)!important;
+  border-radius:10px!important;
+  line-height:1.6!important;
+  overflow-wrap:anywhere!important;
+}
+#caveats .rec li::marker{content:""!important}
+#reference,#caveats{position:relative;z-index:1}
+.wrap{max-width:100%;-webkit-overflow-scrolling:touch}
+@media(max-width:760px){
+  #caveats .rec{grid-template-columns:1fr!important}
 }
