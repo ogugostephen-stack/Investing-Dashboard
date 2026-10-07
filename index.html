@@ -337,10 +337,10 @@ if(lrow)z=pick(lrow,'altman_z_score','altmanZScore','z_score','altman_z','altman
 return {debtEbitda,altmanZ:z,rawCredit:row,rawLiquidity:liquidityRaw};
 }
 function detailMetric(label,value,meta=''){
-return \`<div class="detail-metric"><div class="detail-label">\${label}</div><div class="detail-value">\${value}</div>\${meta?\`<div class="detail-meta">\${meta}</div>\`:''}</div>\`;
+return `<div class="detail-metric"><div class="detail-label">${label}</div><div class="detail-value">${value}</div>${meta?`<div class="detail-meta">${meta}</div>`:''}</div>`;
 }
 function detailTab(name,label,active=false){
-return \`<button class="detail-tab \${active?'active':''}" data-tab="\${name}" onclick="switchDetailTab('\${name}')">\${label}</button>\`;
+return `<button class="detail-tab ${active?'active':''}" data-tab="${name}" onclick="switchDetailTab('${name}')">${label}</button>`;
 }
 function switchDetailTab(name){
 document.querySelectorAll('#detailPanel .detail-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
@@ -353,19 +353,19 @@ const all=[...values,...sma50.filter(Number.isFinite),...sma200.filter(Number.is
 const min=Math.min(...all),max=Math.max(...all),span=(max-min)||1;
 const x=i=>pad+(i/(values.length-1))*(w-pad*2);
 const y=v=>h-pad-((v-min)/span)*(h-pad*2);
-const path=arr=>arr.map((v,i)=>Number.isFinite(v)?(\`\${i?'L':'M'} \${x(i).toFixed(1)} \${y(v).toFixed(1)}\`):'').filter(Boolean).join(' ');
-return \`<svg class="detail-chart-svg" viewBox="0 0 \${w} \${h}" preserveAspectRatio="none" aria-label="Price history chart">
-<line x1="\${pad}" y1="\${h-pad}" x2="\${w-pad}" y2="\${h-pad}" class="chart-grid"/>
-<line x1="\${pad}" y1="\${pad}" x2="\${w-pad}" y2="\${pad}" class="chart-grid"/>
-<path d="\${path(sma200)}" class="chart-line sma200"/>
-<path d="\${path(sma50)}" class="chart-line sma50"/>
-<path d="\${path(values)}" class="chart-line price"/>
+const path=arr=>arr.map((v,i)=>Number.isFinite(v)?(`${i?'L':'M'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`):'').filter(Boolean).join(' ');
+return `<svg class="detail-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="Price history chart">
+<line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" class="chart-grid"/>
+<line x1="${pad}" y1="${pad}" x2="${w-pad}" y2="${pad}" class="chart-grid"/>
+<path d="${path(sma200)}" class="chart-line sma200"/>
+<path d="${path(sma50)}" class="chart-line sma50"/>
+<path d="${path(values)}" class="chart-line price"/>
 </svg>
-<div class="chart-legend"><span><i class="price-dot"></i>Price</span><span><i class="sma50-dot"></i>50 SMA</span><span><i class="sma200-dot"></i>200 SMA</span></div>\`;
+<div class="chart-legend"><span><i class="price-dot"></i>Price</span><span><i class="sma50-dot"></i>50 SMA</span><span><i class="sma200-dot"></i>200 SMA</span></div>`;
 }
 async function fetchTDHistory(ticker,key){
 if(!key)return null;
-const hResp=await fetch(\`https://api.twelvedata.com/time_series?symbol=\${ticker}&interval=1day&outputsize=220&apikey=\${key}\`);
+const hResp=await fetch(`https://api.twelvedata.com/time_series?symbol=${ticker}&interval=1day&outputsize=220&apikey=${key}`);
 if(!hResp.ok)return null;
 const h=await hResp.json();
 if(h.status==='error'||!h.values||!h.values.length)return null;
@@ -385,7 +385,7 @@ const tdKey=document.getElementById('fmpKey').value.trim();
 const roicKey=document.getElementById('roicKey').value.trim();
 if(!key){panel.innerHTML='<div class="dcard">⚠ Paste your Finnhub key above, then open the stock again.</div>';panel.scrollIntoView({behavior:'smooth',block:'center'});return;}
 const [sig,cls]=classify(r.live,r.s200,r.rsi);
-panel.innerHTML=\`<section class="stock-detail-shell"><div class="detail-loading"><span class="loading-orb"></span>Loading \${r.t} intelligence…</div></section>\`;
+panel.innerHTML=`<section class="stock-detail-shell"><div class="detail-loading"><span class="loading-orb"></span>Loading ${r.t} intelligence…</div></section>`;
 panel.scrollIntoView({behavior:'smooth',block:'start'});
 try{
 const [d,history] = await Promise.all([fetchFinnhub(r.t,key),fetchTDHistory(r.t,tdKey)]);
@@ -394,8 +394,8 @@ let roic=null,roicErr=null;
 if(roicKey){try{roic=await fetchROIC(r.t,roicKey);}catch(e){roicErr=e.message;}}
 const recTotal=d.rec?(d.rec.strongBuy+d.rec.buy+d.rec.hold+d.rec.sell+d.rec.strongSell):0;
 const recLabel=d.rec?(()=>{const score=(d.rec.strongBuy*2+d.rec.buy-d.rec.sell-d.rec.strongSell*2)/Math.max(recTotal,1);return score>1?'Strong Buy':score>0.3?'Buy':score>-0.3?'Hold':score>-1?'Sell':'Strong Sell';})():null;
-const epsRows=d.eps.map(e=>\`<tr><td>\${e.period}</td><td class="mono">\${e.actual!=null?e.actual:'—'}</td><td class="mono">\${e.estimate!=null?e.estimate:'—'}</td><td class="mono \${e.surprisePercent>=0?'up':'dn'}">\${e.surprisePercent!=null?e.surprisePercent.toFixed(1)+'%':'—'}</td></tr>\`).join('');
-const newsCards=d.news.map(n=>\`<a class="news-card" href="\${n.url}" target="_blank" rel="noopener"><div class="news-source">\${n.source||'News'} · \${new Date(n.datetime*1000).toLocaleDateString()}</div><div class="news-title">\${n.headline}</div><div class="news-link">Open story ↗</div></a>\`).join('')||'<div class="detail-empty">No recent headlines in the last 14 days.</div>';
+const epsRows=d.eps.map(e=>`<tr><td>${e.period}</td><td class="mono">${e.actual!=null?e.actual:'—'}</td><td class="mono">${e.estimate!=null?e.estimate:'—'}</td><td class="mono ${e.surprisePercent>=0?'up':'dn'}">${e.surprisePercent!=null?e.surprisePercent.toFixed(1)+'%':'—'}</td></tr>`).join('');
+const newsCards=d.news.map(n=>`<a class="news-card" href="${n.url}" target="_blank" rel="noopener"><div class="news-source">${n.source||'News'} · ${new Date(n.datetime*1000).toLocaleDateString()}</div><div class="news-title">${n.headline}</div><div class="news-link">Open story ↗</div></a>`).join('')||'<div class="detail-empty">No recent headlines in the last 14 days.</div>';
 const distFloor=(r.live-r.s200)/r.s200;
 const structRisk=(r.s50-r.s200)/r.s200;
 const targetGap=r.target?((r.target-r.live)/r.live)*100:null;
@@ -406,51 +406,51 @@ const riskNotes=[
   structRisk<0?'50 SMA is below the 200 SMA, a structural caution signal.':'50 SMA is above the 200 SMA, supporting medium-term trend strength.',
   d.nextEarnings?'Next earnings: '+d.nextEarnings+'.':'No upcoming earnings date returned by Finnhub.'
 ];
-panel.innerHTML=\`<section class="stock-detail-shell">
+panel.innerHTML=`<section class="stock-detail-shell">
 <div class="detail-head">
   <div>
     <div class="detail-eyebrow">Stock intelligence</div>
-    <div class="detail-title-row"><h2>\${r.t}</h2><span class="detail-company">\${d.profile.name||''}</span><span class="tag t-\${cls}">\${sig}</span></div>
-    <div class="detail-subline">\${d.profile.exchange||'—'} · \${d.profile.finnhubIndustry||'—'}</div>
+    <div class="detail-title-row"><h2>${r.t}</h2><span class="detail-company">${d.profile.name||''}</span><span class="tag t-${cls}">${sig}</span></div>
+    <div class="detail-subline">${d.profile.exchange||'—'} · ${d.profile.finnhubIndustry||'—'}</div>
   </div>
   <div class="detail-price-box">
-    <div class="detail-price">$\${r.live.toFixed(2)}</div>
+    <div class="detail-price">$${r.live.toFixed(2)}</div>
     <div class="detail-price-note">Latest dashboard price</div>
   </div>
 </div>
 
 <div class="detail-metrics-grid">
-\${detailMetric('200 SMA','$'+r.s200.toFixed(2),((distFloor*100)>=0?'+':'')+(distFloor*100).toFixed(1)+'% from floor')}
-\${detailMetric('50 SMA','$'+r.s50.toFixed(2),((structRisk*100)>=0?'+':'')+(structRisk*100).toFixed(1)+'% vs 200 SMA')}
-\${detailMetric('RSI 14',r.rsi.toFixed(1),r.rsi>=70?'Overbought zone':r.rsi<=40?'Oversold watch':'Neutral / healthy')}
-\${detailMetric('Volume strength',r.vol.toFixed(2)+'x',r.vol>=1?'Above normal':'Below normal')}
-\${detailMetric('Your target',r.target?'$'+r.target:'—',targetGap!=null?((targetGap>=0?'+':'')+targetGap.toFixed(1)+'% from live'):'Not set')}
-\${detailMetric('Analyst target',d.priceTarget?'$'+d.priceTarget.targetMean.toFixed(2):'—',analystUpside!=null?((analystUpside>=0?'+':'')+analystUpside.toFixed(1)+'% implied'):'Unavailable')}
+${detailMetric('200 SMA','$'+r.s200.toFixed(2),((distFloor*100)>=0?'+':'')+(distFloor*100).toFixed(1)+'% from floor')}
+${detailMetric('50 SMA','$'+r.s50.toFixed(2),((structRisk*100)>=0?'+':'')+(structRisk*100).toFixed(1)+'% vs 200 SMA')}
+${detailMetric('RSI 14',r.rsi.toFixed(1),r.rsi>=70?'Overbought zone':r.rsi<=40?'Oversold watch':'Neutral / healthy')}
+${detailMetric('Volume strength',r.vol.toFixed(2)+'x',r.vol>=1?'Above normal':'Below normal')}
+${detailMetric('Your target',r.target?'$'+r.target:'—',targetGap!=null?((targetGap>=0?'+':'')+targetGap.toFixed(1)+'% from live'):'Not set')}
+${detailMetric('Analyst target',d.priceTarget?'$'+d.priceTarget.targetMean.toFixed(2):'—',analystUpside!=null?((analystUpside>=0?'+':'')+analystUpside.toFixed(1)+'% implied'):'Unavailable')}
 </div>
 
 <div class="detail-tabs">
-\${detailTab('overview','Overview',true)}
-\${detailTab('fundamentals','Fundamentals')}
-\${detailTab('earnings','Earnings')}
-\${detailTab('news','News')}
-\${detailTab('risk','Risk')}
+${detailTab('overview','Overview',true)}
+${detailTab('fundamentals','Fundamentals')}
+${detailTab('earnings','Earnings')}
+${detailTab('news','News')}
+${detailTab('risk','Risk')}
 </div>
 
 <div class="detail-tab-panel active" data-panel="overview">
   <div class="detail-two-col">
     <div class="detail-panel-card">
-      <div class="detail-card-head"><div><span class="kicker">Price structure</span><h3>Trend vs moving averages</h3></div><div class="detail-chart-note">\${history?'220 trading days':'Add Twelve Data key for chart'}</div></div>
-      \${history?lineChartSVG(history.closes,history.sma50,history.sma200):'<div class="detail-empty tall">Paste your Twelve Data key above to unlock the price + SMA chart.</div>'}
+      <div class="detail-card-head"><div><span class="kicker">Price structure</span><h3>Trend vs moving averages</h3></div><div class="detail-chart-note">${history?'220 trading days':'Add Twelve Data key for chart'}</div></div>
+      ${history?lineChartSVG(history.closes,history.sma50,history.sma200):'<div class="detail-empty tall">Paste your Twelve Data key above to unlock the price + SMA chart.</div>'}
     </div>
     <div class="detail-panel-card">
       <span class="kicker">Street view</span><h3>Analyst snapshot</h3>
       <div class="snapshot-list">
-        <div><span>Consensus</span><b>\${recLabel||'—'}</b></div>
-        <div><span>Analysts</span><b>\${recTotal||'—'}</b></div>
-        <div><span>Mean target</span><b>\${d.priceTarget?'$'+d.priceTarget.targetMean.toFixed(2):'—'}</b></div>
-        <div><span>Trailing P/E</span><b>\${d.peTTM!=null?d.peTTM.toFixed(1)+'x':'—'}</b></div>
-        <div><span>Market cap</span><b>\${d.profile.marketCapitalization?'$'+(d.profile.marketCapitalization/1000).toFixed(1)+'B':'—'}</b></div>
-        <div><span>Next earnings</span><b>\${d.nextEarnings||'—'}</b></div>
+        <div><span>Consensus</span><b>${recLabel||'—'}</b></div>
+        <div><span>Analysts</span><b>${recTotal||'—'}</b></div>
+        <div><span>Mean target</span><b>${d.priceTarget?'$'+d.priceTarget.targetMean.toFixed(2):'—'}</b></div>
+        <div><span>Trailing P/E</span><b>${d.peTTM!=null?d.peTTM.toFixed(1)+'x':'—'}</b></div>
+        <div><span>Market cap</span><b>${d.profile.marketCapitalization?'$'+(d.profile.marketCapitalization/1000).toFixed(1)+'B':'—'}</b></div>
+        <div><span>Next earnings</span><b>${d.nextEarnings||'—'}</b></div>
       </div>
     </div>
   </div>
@@ -459,54 +459,54 @@ panel.innerHTML=\`<section class="stock-detail-shell">
 <div class="detail-tab-panel" data-panel="fundamentals">
   <div class="detail-section-title"><span class="kicker">Fundamentals</span><h3>Quality, valuation and profitability</h3></div>
   <div class="detail-fund-grid">
-    \${detailMetric('P/B',d.fund.pb!=null?d.fund.pb.toFixed(2)+'x':'—')}
-    \${detailMetric('P/S',d.fund.ps!=null?d.fund.ps.toFixed(2)+'x':'—')}
-    \${detailMetric('ROE',d.fund.roe!=null?d.fund.roe.toFixed(1)+'%':'—')}
-    \${detailMetric('ROA',d.fund.roa!=null?d.fund.roa.toFixed(1)+'%':'—')}
-    \${detailMetric('Current ratio',d.fund.currentRatio!=null?d.fund.currentRatio.toFixed(2):'—')}
-    \${detailMetric('Debt / Equity',d.fund.debtEquity!=null?d.fund.debtEquity.toFixed(1)+'%':'—')}
-    \${detailMetric('Gross margin',d.fund.grossMargin!=null?d.fund.grossMargin.toFixed(1)+'%':'—')}
-    \${detailMetric('Operating margin',d.fund.opMargin!=null?d.fund.opMargin.toFixed(1)+'%':'—')}
-    \${detailMetric('Net margin',d.fund.netMargin!=null?d.fund.netMargin.toFixed(1)+'%':'—')}
-    \${detailMetric('Beta',d.fund.beta!=null?d.fund.beta.toFixed(2):'—')}
-    \${detailMetric('Dividend yield',d.fund.divYield!=null?d.fund.divYield.toFixed(2)+'%':'—')}
-    \${detailMetric('52-week range',(d.fund.w52l!=null&&d.fund.w52h!=null)?'$'+d.fund.w52l.toFixed(0)+' – $'+d.fund.w52h.toFixed(0):'—')}
+    ${detailMetric('P/B',d.fund.pb!=null?d.fund.pb.toFixed(2)+'x':'—')}
+    ${detailMetric('P/S',d.fund.ps!=null?d.fund.ps.toFixed(2)+'x':'—')}
+    ${detailMetric('ROE',d.fund.roe!=null?d.fund.roe.toFixed(1)+'%':'—')}
+    ${detailMetric('ROA',d.fund.roa!=null?d.fund.roa.toFixed(1)+'%':'—')}
+    ${detailMetric('Current ratio',d.fund.currentRatio!=null?d.fund.currentRatio.toFixed(2):'—')}
+    ${detailMetric('Debt / Equity',d.fund.debtEquity!=null?d.fund.debtEquity.toFixed(1)+'%':'—')}
+    ${detailMetric('Gross margin',d.fund.grossMargin!=null?d.fund.grossMargin.toFixed(1)+'%':'—')}
+    ${detailMetric('Operating margin',d.fund.opMargin!=null?d.fund.opMargin.toFixed(1)+'%':'—')}
+    ${detailMetric('Net margin',d.fund.netMargin!=null?d.fund.netMargin.toFixed(1)+'%':'—')}
+    ${detailMetric('Beta',d.fund.beta!=null?d.fund.beta.toFixed(2):'—')}
+    ${detailMetric('Dividend yield',d.fund.divYield!=null?d.fund.divYield.toFixed(2)+'%':'—')}
+    ${detailMetric('52-week range',(d.fund.w52l!=null&&d.fund.w52h!=null)?'$'+d.fund.w52l.toFixed(0)+' – $'+d.fund.w52h.toFixed(0):'—')}
   </div>
-  <div class="detail-note">Forward P/E remains an external check because free API coverage is inconsistent. <a href="https://stockanalysis.com/stocks/\${r.t}/" target="_blank" rel="noopener">Open Stock Analysis ↗</a></div>
+  <div class="detail-note">Forward P/E remains an external check because free API coverage is inconsistent. <a href="https://stockanalysis.com/stocks/${r.t}/" target="_blank" rel="noopener">Open Stock Analysis ↗</a></div>
 </div>
 
 <div class="detail-tab-panel" data-panel="earnings">
   <div class="detail-section-title"><span class="kicker">Earnings</span><h3>Last four reported quarters</h3></div>
-  <div class="wrap"><table class="detail-table"><thead><tr><th style="text-align:left">Period</th><th>Actual EPS</th><th>Estimate</th><th>Surprise</th></tr></thead><tbody>\${epsRows||'<tr><td colspan="4">No earnings history returned.</td></tr>'}</tbody></table></div>
-  <div class="detail-note">Next scheduled earnings: <b>\${d.nextEarnings||'not currently returned'}</b>.</div>
+  <div class="wrap"><table class="detail-table"><thead><tr><th style="text-align:left">Period</th><th>Actual EPS</th><th>Estimate</th><th>Surprise</th></tr></thead><tbody>${epsRows||'<tr><td colspan="4">No earnings history returned.</td></tr>'}</tbody></table></div>
+  <div class="detail-note">Next scheduled earnings: <b>${d.nextEarnings||'not currently returned'}</b>.</div>
 </div>
 
 <div class="detail-tab-panel" data-panel="news">
   <div class="detail-section-title"><span class="kicker">News & context</span><h3>Recent company headlines</h3></div>
-  <div class="news-grid">\${newsCards}</div>
+  <div class="news-grid">${newsCards}</div>
 </div>
 
 <div class="detail-tab-panel" data-panel="risk">
   <div class="detail-two-col">
     <div class="detail-panel-card">
       <span class="kicker">Risk synthesis</span><h3>What the current setup is saying</h3>
-      <ul class="risk-list">\${riskNotes.map(x=>'<li>'+x+'</li>').join('')}</ul>
+      <ul class="risk-list">${riskNotes.map(x=>'<li>'+x+'</li>').join('')}</ul>
     </div>
     <div class="detail-panel-card">
       <span class="kicker">Credit / distress</span><h3>Balance-sheet checks</h3>
       <div class="snapshot-list">
-        <div><span>Debt / EBITDA</span><b>\${roic&&roic.debtEbitda!=null?roic.debtEbitda.toFixed(2)+'x':'—'}</b></div>
-        <div><span>Altman Z-score</span><b>\${roic&&roic.altmanZ!=null?roic.altmanZ.toFixed(2):'—'}</b></div>
-        <div><span>Structural risk</span><b class="\${structRisk>=0?'up':'dn'}">\${(structRisk*100).toFixed(1)}%</b></div>
-        <div><span>Distance to 200 SMA</span><b class="\${distFloor>=0?'up':'dn'}">\${(distFloor*100).toFixed(1)}%</b></div>
+        <div><span>Debt / EBITDA</span><b>${roic&&roic.debtEbitda!=null?roic.debtEbitda.toFixed(2)+'x':'—'}</b></div>
+        <div><span>Altman Z-score</span><b>${roic&&roic.altmanZ!=null?roic.altmanZ.toFixed(2):'—'}</b></div>
+        <div><span>Structural risk</span><b class="${structRisk>=0?'up':'dn'}">${(structRisk*100).toFixed(1)}%</b></div>
+        <div><span>Distance to 200 SMA</span><b class="${distFloor>=0?'up':'dn'}">${(distFloor*100).toFixed(1)}%</b></div>
       </div>
-      \${roicErr?'<div class="detail-note">roic.ai: '+roicErr+'</div>':(!roicKey?'<div class="detail-note">Add your optional roic.ai key to populate credit metrics.</div>':'')}
+      ${roicErr?'<div class="detail-note">roic.ai: '+roicErr+'</div>':(!roicKey?'<div class="detail-note">Add your optional roic.ai key to populate credit metrics.</div>':'')}
     </div>
   </div>
 </div>
 
 <div class="detail-disclaimer">Signals combine price structure and momentum. Fundamentals, news, earnings and balance-sheet metrics should be considered before acting.</div>
-</section>\`;
+</section>`;
 }catch(e){
 console.error('showInfo error for',r.t,e);
 panel.innerHTML='<div class="dcard">⚠ Failed to load '+r.t+' details: '+e.message+'<br>Check the API keys above and try again.</div>';
