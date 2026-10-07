@@ -98,3 +98,12 @@ button.ghost{background:rgba(255,255,255,.025)!important;border:1px solid rgba(2
   .hero h1{font-size:40px!important}
   .hero-side .hero-line{grid-template-columns:1fr 1fr 1fr}
 }
+
+.api-pill{
+  color:#80d9a1;background:rgba(71,185,119,.08);border:1px solid rgba(71,185,119,.2);
+  border-radius:999px;padding:6px 9px;font-size:11px;white-space:nowrap
+}
+.section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin-bottom:14px}
+.section-head h2{margin-bottom:0!important}
+.section-note{color:var(--lux-muted);font-size:11px;text-align:right}
+.brand-mark svg{display:block}
