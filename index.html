@@ -79,6 +79,7 @@ a:hover{border-bottom-color:var(--gold)}
     <div class="brand-copy"><strong>Goat Investor</strong><span>Private market intelligence desk</span></div>
   </div>
   <nav class="topnav">
+    <a href="#portfolio">Portfolio</a>
     <a href="#analysis">Stock analysis</a>
     <a href="#reference">Methodology</a>
     <a href="#caveats">Risk notes</a>
@@ -108,6 +109,38 @@ a:hover{border-bottom-color:var(--gold)}
   <div class="premium-kpi"><div class="label">Average RSI</div><div class="value" id="kpiRsi">—</div><div class="meta">Portfolio-level momentum pulse</div></div>
   <div class="premium-kpi"><div class="label">Avg. distance to floor</div><div class="value" id="kpiFloor">—</div><div class="meta">Price versus long-term trend</div></div>
 </div>
+
+
+<section id="portfolio" class="portfolio-section">
+  <div class="section-head">
+    <div><span class="kicker">Portfolio</span><h2>Holdings & concentration</h2></div>
+    <div class="section-note">Manual holdings · live value via Twelve Data · saved on this device</div>
+  </div>
+  <div class="portfolio-summary">
+    <div class="portfolio-stat"><span>Portfolio value</span><strong id="pfValue">$0.00</strong><small id="pfValueMeta">No holdings yet</small></div>
+    <div class="portfolio-stat"><span>Cost basis</span><strong id="pfCost">$0.00</strong><small>Total invested</small></div>
+    <div class="portfolio-stat"><span>Unrealized P/L</span><strong id="pfPnl">$0.00</strong><small id="pfPnlPct">0.0%</small></div>
+    <div class="portfolio-stat"><span>Largest position</span><strong id="pfTop">—</strong><small id="pfTopPct">0.0% concentration</small></div>
+  </div>
+  <div class="portfolio-entry">
+    <input id="pfTicker" placeholder="Ticker e.g. NVDA" maxlength="8">
+    <input id="pfShares" type="number" min="0" step="any" placeholder="Shares">
+    <input id="pfAvgCost" type="number" min="0" step="any" placeholder="Average cost">
+    <button onclick="addHolding()">Add / Update holding</button>
+    <button class="ghost" onclick="refreshPortfolioPrices()">Refresh live prices</button>
+  </div>
+  <div class="note" id="pfNote">Holdings are stored only in your browser. Live prices use the same Twelve Data API key entered in Stock analysis.</div>
+  <div class="portfolio-layout">
+    <div class="portfolio-table-card">
+      <div class="portfolio-card-head"><span>Holdings</span><span id="pfCount">0 positions</span></div>
+      <div class="wrap"><table id="portfolioTable"><thead><tr><th>Ticker</th><th>Shares</th><th>Avg cost</th><th>Live</th><th>Value</th><th>P/L</th><th>Return</th><th>Weight</th><th></th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="allocation-card">
+      <div class="portfolio-card-head"><span>Allocation</span><span>By market value</span></div>
+      <div id="allocationBars" class="allocation-bars"></div>
+    </div>
+  </div>
+</section>
 
 <section id="analysis">
 <div class="section-head">
@@ -164,6 +197,38 @@ None of these tags are financial advice — they're a mechanical read of price/m
 
 <script>
 document.getElementById('asof').textContent=new Date().toLocaleDateString();
+
+const PORTFOLIO_KEY='goatInvestorPortfolioV1';
+let portfolio=(()=>{try{return JSON.parse(localStorage.getItem(PORTFOLIO_KEY)||'[]');}catch(e){return [];}})();
+function savePortfolio(){try{localStorage.setItem(PORTFOLIO_KEY,JSON.stringify(portfolio));}catch(e){}}
+function money(v){return '$'+Number(v||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});}
+function portfolioPrice(h){const row=list&&list.find?list.find(r=>r.t===h.t):null;return Number(h.live||(row&&row.live)||h.avgCost||0);}
+function renderPortfolio(){
+  const rows=portfolio.map(h=>Object.assign({},h,{live:portfolioPrice(h)}));
+  const totalValue=rows.reduce((s,h)=>s+h.shares*h.live,0),totalCost=rows.reduce((s,h)=>s+h.shares*h.avgCost,0),pnl=totalValue-totalCost,pnlPct=totalCost?100*pnl/totalCost:0;
+  const sorted=rows.slice().sort((a,b)=>(b.shares*b.live)-(a.shares*a.live)),top=sorted[0],topPct=top&&totalValue?100*(top.shares*top.live)/totalValue:0;
+  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+  set('pfValue',money(totalValue));set('pfValueMeta',rows.length?rows.length+' position'+(rows.length===1?'':'s'):'No holdings yet');set('pfCost',money(totalCost));set('pfPnl',(pnl>=0?'+':'')+money(pnl));set('pfPnlPct',(pnl>=0?'+':'')+pnlPct.toFixed(1)+'%');set('pfTop',top?top.t:'—');set('pfTopPct',top?topPct.toFixed(1)+'% concentration':'0.0% concentration');
+  const pnlEl=document.getElementById('pfPnl');if(pnlEl)pnlEl.className=pnl>=0?'up':'dn';
+  const countEl=document.getElementById('pfCount');if(countEl)countEl.textContent=rows.length+' position'+(rows.length===1?'':'s');
+  const body=document.getElementById('portfolioTable')&&document.getElementById('portfolioTable').querySelector('tbody');
+  if(body)body.innerHTML=rows.map((h,i)=>{const value=h.shares*h.live,cost=h.shares*h.avgCost,gain=value-cost,ret=cost?100*gain/cost:0,weight=totalValue?100*value/totalValue:0;return '<tr><td><b class="mono">'+h.t+'</b></td><td class="mono">'+h.shares.toLocaleString(undefined,{maximumFractionDigits:4})+'</td><td class="mono">'+money(h.avgCost)+'</td><td class="mono">'+money(h.live)+'</td><td class="mono">'+money(value)+'</td><td class="mono '+(gain>=0?'up':'dn')+'">'+(gain>=0?'+':'')+money(gain)+'</td><td class="mono '+(ret>=0?'up':'dn')+'">'+(ret>=0?'+':'')+ret.toFixed(1)+'%</td><td class="mono">'+weight.toFixed(1)+'%</td><td><button class="ghost compact" onclick="removeHolding('+i+')">✕</button></td></tr>';}).join('')||'<tr><td colspan="9" class="empty-state">Add your first holding above.</td></tr>';
+  const bars=document.getElementById('allocationBars');if(bars)bars.innerHTML=sorted.map(h=>{const v=h.shares*h.live,w=totalValue?100*v/totalValue:0;return '<div class="allocation-row"><div class="allocation-label"><b>'+h.t+'</b><span>'+w.toFixed(1)+'%</span></div><div class="allocation-track"><i style="width:'+Math.max(2,w)+'%"></i></div><div class="allocation-value">'+money(v)+'</div></div>';}).join('')||'<div class="detail-empty">Allocation appears once holdings are added.</div>';
+}
+function addHolding(){
+  const t=document.getElementById('pfTicker').value.trim().toUpperCase(),shares=parseFloat(document.getElementById('pfShares').value),avgCost=parseFloat(document.getElementById('pfAvgCost').value);
+  if(!t||!Number.isFinite(shares)||shares<=0||!Number.isFinite(avgCost)||avgCost<0){document.getElementById('pfNote').textContent='Enter a ticker, number of shares, and average cost.';return;}
+  const existing=portfolio.find(h=>h.t===t),current=list.find(r=>r.t===t);if(existing){existing.shares=shares;existing.avgCost=avgCost;if(current)existing.live=current.live;}else portfolio.push({t:t,shares:shares,avgCost:avgCost,live:current?current.live:avgCost});
+  savePortfolio();renderPortfolio();document.getElementById('pfNote').textContent=t+' holding saved on this device.';
+}
+function removeHolding(i){portfolio.splice(i,1);savePortfolio();renderPortfolio();}
+async function refreshPortfolioPrices(){
+  const key=document.getElementById('fmpKey').value.trim();if(!key){document.getElementById('pfNote').textContent='Paste your Twelve Data API key in Stock analysis first.';return;}
+  const note=document.getElementById('pfNote');note.textContent='Refreshing portfolio prices…';let failed=[];
+  for(const h of portfolio){try{const r=await fetch('https://api.twelvedata.com/quote?symbol='+encodeURIComponent(h.t)+'&apikey='+encodeURIComponent(key));const q=await r.json();if(!r.ok||q.status==='error'||q.code)throw new Error(q.message||'quote failed');const px=parseFloat(q.close);if(!Number.isFinite(px))throw new Error('no live price');h.live=px;const watch=list.find(x=>x.t===h.t);if(watch)watch.live=px;}catch(e){failed.push(h.t);}}
+  savePortfolio();renderPortfolio();renderList();note.textContent=failed.length?'Updated with failures: '+failed.join(', '):'Portfolio prices refreshed just now.';
+}
+
 
 // ---- watchlist / DCA data, cached fallback values from your sheet — a starting set, add/remove freely ----
 let list=[
@@ -251,6 +316,7 @@ return `<tr><td>${r.t}</td><td class="mono">${r.lst}</td><td>${rangeSVG(r.s200,r
 }
 function removeRow(i){list.splice(i,1);renderList();}
 renderList();
+renderPortfolio();
 
 async function fetchTD(ticker,key){
 const qResp=await fetch(`https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${key}`);
