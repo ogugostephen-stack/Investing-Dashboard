@@ -64,13 +64,45 @@ a{color:var(--gold);text-decoration:none;border-bottom:1px solid transparent;tra
 a:hover{border-bottom-color:var(--gold)}
 .dcard{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:2px;padding:14px 16px;font-size:14px}
 </style>
+<link rel="stylesheet" href="premium.css">
 </head>
 <body>
-<h1>Stock Analysis Dashboard</h1>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">GI</div>
+    <div class="brand-copy"><strong>Goat Investor</strong><span>Private market intelligence desk</span></div>
+  </div>
+  <nav class="topnav">
+    <a href="#analysis">Analysis</a>
+    <a href="#reference">Methodology</a>
+    <a href="#caveats">Risk notes</a>
+  </nav>
+</header>
 
-<div class="sub">Analyse any ticker on your sheet's own formulas — SMA structure, RSI(14), volume strength, structural risk, distance to floor, and DCA buy-zone logic · <span id="asof"></span></div>
+<section class="hero" style="background:none!important;border:0!important;box-shadow:none!important;padding-left:0!important;padding-right:0!important;margin-bottom:8px!important">
+  <div>
+    <div class="hero-eyebrow">Stock intelligence · portfolio context</div>
+    <h1>See the signal.<br><em>Respect the risk.</em></h1>
+    <p>Technical structure, momentum, fundamentals, earnings and portfolio context in one decisive view. Built for analysis first, portfolio awareness second.</p>
+  </div>
+  <div class="hero-side">
+    <div class="hero-status"><b>Signal desk</b><span id="asof"></span></div>
+    <div class="hero-line">
+      <div class="hero-stat"><span class="n" id="heroBuy">—</span><span class="k">Buy / strike</span></div>
+      <div class="hero-stat"><span class="n" id="heroWatch">—</span><span class="k">Watch</span></div>
+      <div class="hero-stat"><span class="n" id="heroRisk">—</span><span class="k">Risk</span></div>
+    </div>
+  </div>
+</section>
 
-<section>
+<div class="premium-grid">
+  <div class="premium-kpi"><div class="label">Tracked names</div><div class="value" id="kpiTracked">—</div><div class="meta">Across DCA, AI-infra and custom lists</div></div>
+  <div class="premium-kpi"><div class="label">Below 200 SMA</div><div class="value" id="kpiBelow">—</div><div class="meta">Potential value / stress zone</div></div>
+  <div class="premium-kpi"><div class="label">Average RSI</div><div class="value" id="kpiRsi">—</div><div class="meta">Portfolio-level momentum pulse</div></div>
+  <div class="premium-kpi"><div class="label">Avg. distance to floor</div><div class="value" id="kpiFloor">—</div><div class="meta">Price versus long-term trend</div></div>
+</div>
+
+<section id="analysis">
 <span class="kicker">Analysis</span><h2>Ticker analysis tool</h2>
 <div id="signalSummary" class="row" style="margin-bottom:14px"></div>
 <div class="row">
@@ -88,7 +120,7 @@ a:hover{border-bottom-color:var(--gold)}
 <div id="detailPanel" style="margin-top:12px"></div>
 </section>
 
-<section>
+<section id="reference">
 <span class="kicker">Reference</span><h2>Column legend — what each metric means and why it matters</h2>
 <div class="wrap"><table><thead><tr><th style="text-align:left">Column</th><th style="text-align:left">What it is</th><th style="text-align:left">Why it matters</th></tr></thead><tbody>
 <tr><td style="text-align:left"><b>Live</b></td><td style="text-align:left">Latest traded price</td><td style="text-align:left">The baseline every other column is measured against.</td></tr>
@@ -115,7 +147,7 @@ None of these tags are financial advice — they're a mechanical read of price/m
 </div>
 </section>
 
-<section>
+<section id="caveats">
 <span class="kicker">Read carefully</span><h2>How to read this — assumptions &amp; caveats</h2>
 <ul class="rec" id="recs"></ul>
 </section>
@@ -163,7 +195,26 @@ return `<svg width="76" height="16" viewBox="0 0 100 16" style="display:block;ov
 <circle cx="${x(live)}" cy="8" r="3.6" fill="var(${tagVar[cls]})" stroke="var(--bg)" stroke-width="1.2"/>
 </svg>`;
 }
+function renderPremiumHero(){
+const counts={green:0,yellow:0,purple:0,pink:0,rose:0};
+let below=0,rsiSum=0,floorSum=0;
+list.forEach(r=>{
+  const [,cls]=classify(r.live,r.s200,r.rsi); counts[cls]=(counts[cls]||0)+1;
+  if(r.live<=r.s200) below++;
+  rsiSum+=r.rsi;
+  floorSum+=((r.live-r.s200)/r.s200)*100;
+});
+const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+set('heroBuy',counts.green||0);
+set('heroWatch',counts.yellow||0);
+set('heroRisk',(counts.pink||0)+(counts.rose||0));
+set('kpiTracked',list.length);
+set('kpiBelow',below);
+set('kpiRsi',list.length?(rsiSum/list.length).toFixed(1):'—');
+set('kpiFloor',list.length?((floorSum/list.length)>=0?'+':'')+(floorSum/list.length).toFixed(1)+'%':'—');
+}
 function renderSummary(){
+renderPremiumHero();
 const counts={};
 list.forEach(r=>{const [,cls]=classify(r.live,r.s200,r.rsi);counts[cls]=(counts[cls]||0)+1;});
 const order=[['green','Buy / STRIKE'],['yellow','Watch'],['purple','Momentum'],['pink','Expensive'],['rose','Danger']];
