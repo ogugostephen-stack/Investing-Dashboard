@@ -80,6 +80,7 @@ a:hover{border-bottom-color:var(--gold)}
   </div>
   <nav class="topnav">
     <a href="#portfolio">Portfolio</a>
+    <a href="#compare">Compare</a>
     <a href="#analysis">Stock analysis</a>
     <a href="#reference">Methodology</a>
     <a href="#caveats">Risk notes</a>
@@ -110,6 +111,30 @@ a:hover{border-bottom-color:var(--gold)}
   <div class="premium-kpi"><div class="label">Avg. distance to floor</div><div class="value" id="kpiFloor">—</div><div class="meta">Price versus long-term trend</div></div>
 </div>
 
+
+
+<section id="compare" class="compare-section">
+  <div class="section-head">
+    <div><span class="kicker">Compare</span><h2>Stock comparison desk</h2></div>
+    <div class="section-note">2–4 names · technicals · valuation · quality · analyst view</div>
+  </div>
+  <div class="compare-entry">
+    <input id="cmp1" placeholder="Ticker 1" maxlength="8">
+    <input id="cmp2" placeholder="Ticker 2" maxlength="8">
+    <input id="cmp3" placeholder="Ticker 3" maxlength="8">
+    <input id="cmp4" placeholder="Ticker 4" maxlength="8">
+    <button onclick="runComparison()">Compare stocks</button>
+    <button class="ghost" onclick="clearComparison()">Clear</button>
+  </div>
+  <div class="note" id="compareNote">Tip: compare two to four stocks. Existing dashboard data is used immediately; Twelve Data and Finnhub enrich the comparison when their keys are entered below.</div>
+  <div id="compareResults" class="compare-results">
+    <div class="compare-empty">
+      <div class="compare-empty-mark">↔</div>
+      <strong>Build a side-by-side investment view</strong>
+      <span>Try NVDA vs AMD, META vs GOOG, or any stocks you are researching.</span>
+    </div>
+  </div>
+</section>
 
 <section id="portfolio" class="portfolio-section">
   <div class="section-head">
@@ -229,6 +254,110 @@ async function refreshPortfolioPrices(){
   savePortfolio();renderPortfolio();renderList();note.textContent=failed.length?'Updated with failures: '+failed.join(', '):'Portfolio prices refreshed just now.';
 }
 
+
+
+function cmpFmt(v,digits=1,suffix=''){
+  return (v===null||v===undefined||!Number.isFinite(Number(v)))?'—':Number(v).toFixed(digits)+suffix;
+}
+function cmpMoney(v){
+  return (v===null||v===undefined||!Number.isFinite(Number(v)))?'—':'$'+Number(v).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function clearComparison(){
+  ['cmp1','cmp2','cmp3','cmp4'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('compareResults').innerHTML='<div class="compare-empty"><div class="compare-empty-mark">↔</div><strong>Build a side-by-side investment view</strong><span>Try NVDA vs AMD, META vs GOOG, or any stocks you are researching.</span></div>';
+  document.getElementById('compareNote').textContent='Tip: compare two to four stocks. Existing dashboard data is used immediately; Twelve Data and Finnhub enrich the comparison when their keys are entered below.';
+}
+function comparisonLeader(items,accessor,mode='max'){
+  const valid=items.filter(x=>Number.isFinite(Number(accessor(x))));
+  if(!valid.length)return null;
+  return valid.reduce((best,x)=>{
+    const a=Number(accessor(x)),b=Number(accessor(best));
+    return mode==='min'?(a<b?x:best):(a>b?x:best);
+  });
+}
+function comparisonRow(label,items,formatter,accessor,leaderMode=null){
+  const leader=leaderMode?comparisonLeader(items,accessor,leaderMode):null;
+  return '<tr><td class="compare-metric-name">'+label+'</td>'+items.map(x=>{
+    const val=accessor(x),isLead=leader&&leader.t===x.t;
+    return '<td class="'+(isLead?'compare-best':'')+'">'+formatter(val)+(isLead?'<span class="best-chip">relative edge</span>':'')+'</td>';
+  }).join('')+'</tr>';
+}
+async function runComparison(){
+  const tickers=['cmp1','cmp2','cmp3','cmp4'].map(id=>document.getElementById(id).value.trim().toUpperCase()).filter(Boolean);
+  const unique=[...new Set(tickers)].slice(0,4);
+  const note=document.getElementById('compareNote'),results=document.getElementById('compareResults');
+  if(unique.length<2){note.textContent='Enter at least two different tickers to compare.';return;}
+  note.textContent='Building comparison…';
+  results.innerHTML='<div class="compare-loading"><span class="loading-orb"></span>Pulling the strongest available data for '+unique.join(' · ')+'</div>';
+  const tdKey=document.getElementById('fmpKey').value.trim();
+  const fhKey=document.getElementById('fhKey').value.trim();
+  const items=[];
+  for(const t of unique){
+    let tech=list.find(r=>r.t===t);
+    if(tech)tech=Object.assign({},tech);
+    if(tdKey){
+      try{
+        const live=await fetchTD(t,tdKey);
+        tech=Object.assign({t:t,lst:tech&&tech.lst?tech.lst:'Compare'},tech||{},live);
+      }catch(e){}
+    }
+    if(!tech)tech={t:t,lst:'Compare',live:NaN,s200:NaN,s50:NaN,rsi:NaN,vol:NaN};
+    let fund=null;
+    if(fhKey){try{fund=await fetchFinnhub(t,fhKey);}catch(e){}}
+    const dist=Number.isFinite(tech.live)&&Number.isFinite(tech.s200)?100*(tech.live-tech.s200)/tech.s200:NaN;
+    const structural=Number.isFinite(tech.s50)&&Number.isFinite(tech.s200)?100*(tech.s50-tech.s200)/tech.s200:NaN;
+    const analystUpside=fund&&fund.priceTarget&&Number.isFinite(tech.live)?100*(fund.priceTarget.targetMean-tech.live)/tech.live:NaN;
+    const signal=Number.isFinite(tech.live)&&Number.isFinite(tech.s200)&&Number.isFinite(tech.rsi)?classify(tech.live,tech.s200,tech.rsi):['Data needed','purple'];
+    items.push({t:t,tech:tech,fund:fund,dist:dist,structural:structural,analystUpside:analystUpside,signal:signal});
+  }
+
+  const closest=comparisonLeader(items,x=>Math.abs(x.dist),'min');
+  const lowPE=comparisonLeader(items,x=>x.fund&&x.fund.peTTM,'min');
+  const highROE=comparisonLeader(items,x=>x.fund&&x.fund.fund&&x.fund.fund.roe,'max');
+  const upside=comparisonLeader(items,x=>x.analystUpside,'max');
+
+  const cards=items.map(x=>{
+    const f=x.fund,tech=x.tech;
+    return '<article class="compare-stock-card">'+
+      '<div class="compare-stock-top"><div><div class="compare-ticker">'+x.t+'</div><div class="compare-company">'+(f&&f.profile&&f.profile.name?f.profile.name:(tech.lst||'Tracked stock'))+'</div></div><span class="tag t-'+x.signal[1]+'">'+x.signal[0]+'</span></div>'+
+      '<div class="compare-price">'+cmpMoney(tech.live)+'</div>'+
+      '<div class="compare-mini-grid">'+
+        '<div><span>RSI</span><b>'+cmpFmt(tech.rsi,1)+'</b></div>'+
+        '<div><span>vs 200 SMA</span><b class="'+(x.dist>=0?'up':'dn')+'">'+cmpFmt(x.dist,1,'%')+'</b></div>'+
+        '<div><span>P/E</span><b>'+cmpFmt(f&&f.peTTM,1,'x')+'</b></div>'+
+        '<div><span>ROE</span><b>'+cmpFmt(f&&f.fund&&f.fund.roe,1,'%')+'</b></div>'+
+      '</div></article>';
+  }).join('');
+
+  const callouts='<div class="compare-callouts">'+
+    '<div><span>Closest to long-term trend</span><strong>'+(closest?closest.t:'—')+'</strong></div>'+
+    '<div><span>Lowest trailing P/E</span><strong>'+(lowPE?lowPE.t:'—')+'</strong></div>'+
+    '<div><span>Highest ROE</span><strong>'+(highROE?highROE.t:'—')+'</strong></div>'+
+    '<div><span>Highest analyst upside</span><strong>'+(upside?upside.t:'—')+'</strong></div>'+
+  '</div>';
+
+  const table='<div class="compare-matrix wrap"><table><thead><tr><th style="text-align:left">Metric</th>'+items.map(x=>'<th>'+x.t+'</th>').join('')+'</tr></thead><tbody>'+
+    comparisonRow('Live price',items,cmpMoney,x=>x.tech.live)+
+    comparisonRow('50 SMA',items,cmpMoney,x=>x.tech.s50)+
+    comparisonRow('200 SMA',items,cmpMoney,x=>x.tech.s200)+
+    comparisonRow('Distance to 200 SMA',items,v=>cmpFmt(v,1,'%'),x=>x.dist,'min')+
+    comparisonRow('RSI 14',items,v=>cmpFmt(v,1),x=>x.tech.rsi)+
+    comparisonRow('Volume strength',items,v=>cmpFmt(v,2,'x'),x=>x.tech.vol,'max')+
+    comparisonRow('Structural trend',items,v=>cmpFmt(v,1,'%'),x=>x.structural,'max')+
+    comparisonRow('Trailing P/E',items,v=>cmpFmt(v,1,'x'),x=>x.fund&&x.fund.peTTM,'min')+
+    comparisonRow('P/S',items,v=>cmpFmt(v,2,'x'),x=>x.fund&&x.fund.fund&&x.fund.fund.ps,'min')+
+    comparisonRow('ROE',items,v=>cmpFmt(v,1,'%'),x=>x.fund&&x.fund.fund&&x.fund.fund.roe,'max')+
+    comparisonRow('Net margin',items,v=>cmpFmt(v,1,'%'),x=>x.fund&&x.fund.fund&&x.fund.fund.netMargin,'max')+
+    comparisonRow('Debt / Equity',items,v=>cmpFmt(v,1,'%'),x=>x.fund&&x.fund.fund&&x.fund.fund.debtEquity,'min')+
+    comparisonRow('Beta',items,v=>cmpFmt(v,2),x=>x.fund&&x.fund.fund&&x.fund.fund.beta,'min')+
+    comparisonRow('Analyst target',items,cmpMoney,x=>x.fund&&x.fund.priceTarget&&x.fund.priceTarget.targetMean)+
+    comparisonRow('Implied analyst upside',items,v=>cmpFmt(v,1,'%'),x=>x.analystUpside,'max')+
+  '</tbody></table></div>';
+
+  results.innerHTML=callouts+'<div class="compare-card-grid">'+cards+'</div>'+table+
+    '<div class="detail-disclaimer">“Relative edge” only marks the strongest value within this comparison for that metric. It is not a buy recommendation, and cross-sector valuation comparisons can be misleading.</div>';
+  note.textContent='Comparison ready. Add API keys in Stock analysis for the fullest technical and fundamental view.';
+}
 
 // ---- watchlist / DCA data, cached fallback values from your sheet — a starting set, add/remove freely ----
 let list=[
