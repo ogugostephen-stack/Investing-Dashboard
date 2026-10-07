@@ -158,7 +158,42 @@ a:hover{border-bottom-color:var(--gold)}
     <div id="ccRadar" class="signal-radar"></div>
     <div class="command-side-foot">Mechanical signals only. Open a stock detail before acting.</div>
   </aside>
+
 </section>
+
+<section id="visualIntel" class="visual-intel-section">
+  <div class="section-head">
+    <div><span class="kicker">Visual intelligence</span><h2>Opportunity map</h2></div>
+    <div class="section-note">RSI × distance from 200 SMA · click any name to inspect</div>
+  </div>
+  <div class="visual-intel-grid">
+    <div class="opportunity-map-card">
+      <div class="map-axis-label top">More extended</div>
+      <div class="map-axis-label bottom">Below long-term trend</div>
+      <div class="map-axis-label left">Lower RSI</div>
+      <div class="map-axis-label right">Higher RSI</div>
+      <div class="opportunity-map" id="opportunityMap">
+        <div class="map-vline"></div>
+        <div class="map-hline"></div>
+        <div class="map-zone map-zone-buy"><span>Value / reset</span></div>
+        <div class="map-zone map-zone-risk"><span>Extension risk</span></div>
+      </div>
+    </div>
+    <div class="visual-side-stack">
+      <article class="visual-summary-card">
+        <div class="visual-summary-label">Watchlist signal mix</div>
+        <div class="signal-donut-wrap">
+          <div class="signal-donut" id="signalDonut"><div><b id="signalDonutCount">—</b><span>names</span></div></div>
+          <div class="signal-donut-legend" id="signalDonutLegend"></div>
+        </div>
+      </article>
+      <article class="visual-summary-card">
+        <div class="visual-summary-label">Risk temperature</div>
+        <div class="risk-gauge"><div class="risk-gauge-fill" id="riskGaugeFill"></div><i id="riskGaugeNeedle"></i></div>
+        <div class="risk-gauge-copy"><strong id="riskGaugeLabel">—</strong><span id="riskGaugeMeta">Based on RSI and trend extension</span></div>
+      </article>
+    </div>
+  </div>
 
 <section id="compare" class="compare-section">
   <div class="section-head">
@@ -209,6 +244,10 @@ a:hover{border-bottom-color:var(--gold)}
     </div>
     <div class="allocation-card">
       <div class="portfolio-card-head"><span>Allocation</span><span>By market value</span></div>
+      <div class="portfolio-donut-area">
+        <div class="portfolio-donut" id="portfolioDonut"><div><b id="portfolioDonutValue">0</b><span>positions</span></div></div>
+        <div class="portfolio-donut-legend" id="portfolioDonutLegend"></div>
+      </div>
       <div id="allocationBars" class="allocation-bars"></div>
     </div>
   </div>
@@ -286,6 +325,18 @@ function renderPortfolio(){
   const body=document.getElementById('portfolioTable')&&document.getElementById('portfolioTable').querySelector('tbody');
   if(body)body.innerHTML=rows.map((h,i)=>{const value=h.shares*h.live,cost=h.shares*h.avgCost,gain=value-cost,ret=cost?100*gain/cost:0,weight=totalValue?100*value/totalValue:0;return '<tr><td><b class="mono">'+h.t+'</b></td><td class="mono">'+h.shares.toLocaleString(undefined,{maximumFractionDigits:4})+'</td><td class="mono">'+money(h.avgCost)+'</td><td class="mono">'+money(h.live)+'</td><td class="mono">'+money(value)+'</td><td class="mono '+(gain>=0?'up':'dn')+'">'+(gain>=0?'+':'')+money(gain)+'</td><td class="mono '+(ret>=0?'up':'dn')+'">'+(ret>=0?'+':'')+ret.toFixed(1)+'%</td><td class="mono">'+weight.toFixed(1)+'%</td><td><button class="ghost compact" onclick="removeHolding('+i+')">✕</button></td></tr>';}).join('')||'<tr><td colspan="9" class="empty-state">Add your first holding above.</td></tr>';
   const bars=document.getElementById('allocationBars');if(bars)bars.innerHTML=sorted.map(h=>{const v=h.shares*h.live,w=totalValue?100*v/totalValue:0;return '<div class="allocation-row"><div class="allocation-label"><b>'+h.t+'</b><span>'+w.toFixed(1)+'%</span></div><div class="allocation-track"><i style="width:'+Math.max(2,w)+'%"></i></div><div class="allocation-value">'+money(v)+'</div></div>';}).join('')||'<div class="detail-empty">Allocation appears once holdings are added.</div>';
+  const pd=document.getElementById('portfolioDonut'),pdv=document.getElementById('portfolioDonutValue'),pdl=document.getElementById('portfolioDonutLegend');
+  if(pdv)pdv.textContent=rows.length;
+  if(pd&&rows.length){
+    const palette=['#f3d995','#cda95a','#9e8bd9','#5fc98a','#d17da4','#6fa5d8','#df6f78','#8e99aa'];
+    let pos=0,segments=[];
+    sorted.forEach((h,i)=>{const w=totalValue?100*(h.shares*h.live)/totalValue:0;segments.push(palette[i%palette.length]+' '+pos.toFixed(1)+'% '+(pos+w).toFixed(1)+'%');pos+=w;});
+    pd.style.background='conic-gradient('+segments.join(',')+')';
+    if(pdl)pdl.innerHTML=sorted.slice(0,6).map((h,i)=>{const w=totalValue?100*(h.shares*h.live)/totalValue:0;return '<div><i style="background:'+palette[i%palette.length]+'"></i><span>'+h.t+'</span><b>'+w.toFixed(1)+'%</b></div>';}).join('');
+  }else if(pd){
+    pd.style.background='conic-gradient(rgba(255,255,255,.05) 0 100%)';
+    if(pdl)pdl.innerHTML='<div class="portfolio-legend-empty">Add holdings to visualize allocation.</div>';
+  }
 }
 function addHolding(){
   const t=document.getElementById('pfTicker').value.trim().toUpperCase(),shares=parseFloat(document.getElementById('pfShares').value),avgCost=parseFloat(document.getElementById('pfAvgCost').value);
@@ -447,6 +498,57 @@ return `<svg width="76" height="16" viewBox="0 0 100 16" style="display:block;ov
 </svg>`;
 }
 
+
+function renderVisualIntelligence(){
+  if(!Array.isArray(list)||!list.length)return;
+  const map=document.getElementById('opportunityMap');
+  const rows=list.map((r,i)=>{
+    const dist=((r.live-r.s200)/r.s200)*100;
+    const sig=classify(r.live,r.s200,r.rsi);
+    return {r:r,dist:dist,sig:sig,i:i};
+  });
+  if(map){
+    map.querySelectorAll('.map-point').forEach(n=>n.remove());
+    rows.forEach(x=>{
+      const px=Math.max(4,Math.min(96,((x.r.rsi-20)/65)*100));
+      const py=Math.max(5,Math.min(95,92-((x.dist+35)/110)*82));
+      const b=document.createElement('button');
+      b.className='map-point '+x.sig[1];
+      b.style.left=px+'%';b.style.top=py+'%';
+      b.title=x.r.t+' · '+x.sig[0]+' · RSI '+x.r.rsi.toFixed(1)+' · '+(x.dist>=0?'+':'')+x.dist.toFixed(1)+'% vs 200 SMA';
+      b.innerHTML='<span>'+x.r.t+'</span>';
+      b.onclick=()=>{document.getElementById('analysis').scrollIntoView({behavior:'smooth'});setTimeout(()=>showInfo(x.i),450);};
+      map.appendChild(b);
+    });
+  }
+
+  const counts={green:0,yellow:0,purple:0,pink:0,rose:0};
+  rows.forEach(x=>counts[x.sig[1]]=(counts[x.sig[1]]||0)+1);
+  const total=rows.length;
+  const colors={green:'#5fc98a',yellow:'#d8bd68',purple:'#9e8bd9',pink:'#d17da4',rose:'#df6f78'};
+  let cursor=0,stops=[];
+  ['green','yellow','purple','pink','rose'].forEach(k=>{
+    const pct=total?counts[k]/total*100:0;
+    if(pct>0){stops.push(colors[k]+' '+cursor.toFixed(1)+'% '+(cursor+pct).toFixed(1)+'%');cursor+=pct;}
+  });
+  const donut=document.getElementById('signalDonut');
+  if(donut)donut.style.background='conic-gradient('+stops.join(',')+')';
+  const donutCount=document.getElementById('signalDonutCount');if(donutCount)donutCount.textContent=total;
+  const legend=document.getElementById('signalDonutLegend');
+  if(legend)legend.innerHTML=[
+    ['green','Buy'],['yellow','Watch'],['purple','Momentum'],['pink','Risk'],['rose','Danger']
+  ].map(x=>'<div><i style="background:'+colors[x[0]]+'"></i><span>'+x[1]+'</span><b>'+counts[x[0]]+'</b></div>').join('');
+
+  const avgRsi=rows.reduce((s,x)=>s+x.r.rsi,0)/total;
+  const avgExt=rows.reduce((s,x)=>s+Math.max(0,x.dist),0)/total;
+  const riskScore=Math.max(0,Math.min(100,((avgRsi-35)/45)*55+(avgExt/45)*45));
+  const needle=document.getElementById('riskGaugeNeedle');if(needle)needle.style.left=riskScore+'%';
+  const fill=document.getElementById('riskGaugeFill');if(fill)fill.style.width=riskScore+'%';
+  const label=riskScore<35?'Cool':riskScore<62?'Balanced':riskScore<80?'Warm':'Hot';
+  const gaugeLabel=document.getElementById('riskGaugeLabel');if(gaugeLabel)gaugeLabel.textContent=label;
+  const gaugeMeta=document.getElementById('riskGaugeMeta');if(gaugeMeta)gaugeMeta.textContent='Score '+riskScore.toFixed(0)+'/100 · avg RSI '+avgRsi.toFixed(1);
+}
+
 function renderCommandCenter(){
   if(!Array.isArray(list)||!list.length)return;
   const rows=list.map(r=>{
@@ -495,6 +597,7 @@ function renderCommandCenter(){
 
 function renderPremiumHero(){
 renderCommandCenter();
+renderVisualIntelligence();
 const counts={green:0,yellow:0,purple:0,pink:0,rose:0};
 let below=0,rsiSum=0,floorSum=0;
 list.forEach(r=>{
