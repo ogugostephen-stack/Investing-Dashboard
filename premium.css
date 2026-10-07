@@ -254,3 +254,37 @@ button.compact{padding:6px 8px!important;font-size:11px!important}
   .detail-head{padding:18px}
   .detail-title-row h2{font-size:26px!important}
 }
+
+/* Portfolio view */
+.portfolio-section{border-color:rgba(214,177,95,.22)!important}
+.portfolio-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:4px 0 16px}
+.portfolio-stat{padding:16px;border:1px solid rgba(255,255,255,.06);border-radius:12px;background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,.012))}
+.portfolio-stat span{display:block;color:var(--lux-muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em}
+.portfolio-stat strong{display:block;margin-top:8px;font:600 24px/1.1 'IBM Plex Mono',monospace}
+.portfolio-stat small{display:block;margin-top:7px;color:var(--lux-muted);font-size:10px}
+.portfolio-entry{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+.portfolio-entry input{width:140px}
+.portfolio-entry #pfTicker{width:130px}
+.portfolio-layout{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,.7fr);gap:14px;margin-top:16px}
+.portfolio-table-card,.allocation-card{border:1px solid rgba(255,255,255,.055);border-radius:12px;background:rgba(255,255,255,.014);overflow:hidden}
+.portfolio-card-head{display:flex;justify-content:space-between;gap:12px;padding:13px 15px;border-bottom:1px solid rgba(255,255,255,.055);font-size:11px;color:var(--lux-muted)}
+.portfolio-card-head span:first-child{color:var(--lux-text);font-weight:600}
+.allocation-bars{padding:12px 14px}
+.allocation-row{display:grid;grid-template-columns:1fr auto;gap:6px 10px;padding:10px 0;border-bottom:1px solid rgba(255,255,255,.045)}
+.allocation-row:last-child{border-bottom:0}
+.allocation-label{display:flex;justify-content:space-between;gap:10px;font-size:11px}
+.allocation-label span{color:var(--lux-muted)}
+.allocation-track{height:6px;border-radius:999px;background:rgba(255,255,255,.05);overflow:hidden;grid-column:1/2}
+.allocation-track i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--lux-gold),var(--lux-gold-2))}
+.allocation-value{grid-column:2/3;grid-row:2/3;font:500 10px 'IBM Plex Mono',monospace;color:var(--lux-muted)}
+#portfolioTable thead{position:static!important}
+#portfolioTable th,#portfolioTable td{white-space:nowrap}
+@media(max-width:1000px){
+  .portfolio-summary{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .portfolio-layout{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .portfolio-summary{grid-template-columns:1fr 1fr}
+  .portfolio-entry{display:grid;grid-template-columns:1fr 1fr}
+  .portfolio-entry input,.portfolio-entry #pfTicker,.portfolio-entry button{width:100%}
+}
