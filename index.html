@@ -79,9 +79,9 @@ a:hover{border-bottom-color:var(--gold)}
     <div class="brand-copy"><strong>Goat Investor</strong><span>Private market intelligence desk</span></div>
   </div>
   <nav class="topnav">
-    <a href="#portfolio">Portfolio</a>
-    <a href="#compare">Compare</a>
     <a href="#analysis">Stock analysis</a>
+    <a href="#compare">Compare</a>
+    <a href="#portfolio">Portfolio</a>
     <a href="#reference">Methodology</a>
     <a href="#caveats">Risk notes</a>
     <span class="api-pill">● APIs ready</span>
@@ -111,7 +111,54 @@ a:hover{border-bottom-color:var(--gold)}
   <div class="premium-kpi"><div class="label">Avg. distance to floor</div><div class="value" id="kpiFloor">—</div><div class="meta">Price versus long-term trend</div></div>
 </div>
 
+<section id="commandCenter" class="command-center">
+  <div class="command-main">
+    <div class="command-heading">
+      <div>
+        <span class="kicker">Command center</span>
+        <h2>Your investing desk at a glance</h2>
+      </div>
+      <div class="command-actions">
+        <a class="command-btn primary" href="#analysis">Analyze a stock</a>
+        <a class="command-btn" href="#compare">Compare names</a>
+        <a class="command-btn" href="#portfolio">View portfolio</a>
+      </div>
+    </div>
 
+    <div class="command-grid">
+      <article class="command-card feature">
+        <div class="command-card-label">Best technical setup</div>
+        <div class="command-card-value" id="ccSetup">—</div>
+        <div class="command-card-meta" id="ccSetupMeta">Waiting for watchlist data</div>
+        <div class="command-spark" id="ccSetupSpark"></div>
+      </article>
+      <article class="command-card">
+        <div class="command-card-label">Strongest momentum</div>
+        <div class="command-card-value" id="ccMomentum">—</div>
+        <div class="command-card-meta" id="ccMomentumMeta">Highest healthy RSI profile</div>
+      </article>
+      <article class="command-card">
+        <div class="command-card-label">Highest extension risk</div>
+        <div class="command-card-value" id="ccRisk">—</div>
+        <div class="command-card-meta" id="ccRiskMeta">Furthest above long-term trend</div>
+      </article>
+      <article class="command-card">
+        <div class="command-card-label">Portfolio concentration</div>
+        <div class="command-card-value" id="ccConcentration">—</div>
+        <div class="command-card-meta" id="ccConcentrationMeta">Add holdings to calculate exposure</div>
+      </article>
+    </div>
+  </div>
+
+  <aside class="command-side">
+    <div class="command-side-head">
+      <span>Signal radar</span>
+      <span id="ccRadarCount">— names</span>
+    </div>
+    <div id="ccRadar" class="signal-radar"></div>
+    <div class="command-side-foot">Mechanical signals only. Open a stock detail before acting.</div>
+  </aside>
+</section>
 
 <section id="compare" class="compare-section">
   <div class="section-head">
@@ -244,14 +291,14 @@ function addHolding(){
   const t=document.getElementById('pfTicker').value.trim().toUpperCase(),shares=parseFloat(document.getElementById('pfShares').value),avgCost=parseFloat(document.getElementById('pfAvgCost').value);
   if(!t||!Number.isFinite(shares)||shares<=0||!Number.isFinite(avgCost)||avgCost<0){document.getElementById('pfNote').textContent='Enter a ticker, number of shares, and average cost.';return;}
   const existing=portfolio.find(h=>h.t===t),current=list.find(r=>r.t===t);if(existing){existing.shares=shares;existing.avgCost=avgCost;if(current)existing.live=current.live;}else portfolio.push({t:t,shares:shares,avgCost:avgCost,live:current?current.live:avgCost});
-  savePortfolio();renderPortfolio();document.getElementById('pfNote').textContent=t+' holding saved on this device.';
+  savePortfolio();renderPortfolio();renderCommandCenter();document.getElementById('pfNote').textContent=t+' holding saved on this device.';
 }
-function removeHolding(i){portfolio.splice(i,1);savePortfolio();renderPortfolio();}
+function removeHolding(i){portfolio.splice(i,1);savePortfolio();renderPortfolio();renderCommandCenter();}
 async function refreshPortfolioPrices(){
   const key=document.getElementById('fmpKey').value.trim();if(!key){document.getElementById('pfNote').textContent='Paste your Twelve Data API key in Stock analysis first.';return;}
   const note=document.getElementById('pfNote');note.textContent='Refreshing portfolio prices…';let failed=[];
   for(const h of portfolio){try{const r=await fetch('https://api.twelvedata.com/quote?symbol='+encodeURIComponent(h.t)+'&apikey='+encodeURIComponent(key));const q=await r.json();if(!r.ok||q.status==='error'||q.code)throw new Error(q.message||'quote failed');const px=parseFloat(q.close);if(!Number.isFinite(px))throw new Error('no live price');h.live=px;const watch=list.find(x=>x.t===h.t);if(watch)watch.live=px;}catch(e){failed.push(h.t);}}
-  savePortfolio();renderPortfolio();renderList();note.textContent=failed.length?'Updated with failures: '+failed.join(', '):'Portfolio prices refreshed just now.';
+  savePortfolio();renderPortfolio();renderList();renderCommandCenter();note.textContent=failed.length?'Updated with failures: '+failed.join(', '):'Portfolio prices refreshed just now.';
 }
 
 
@@ -399,7 +446,55 @@ return `<svg width="76" height="16" viewBox="0 0 100 16" style="display:block;ov
 <circle cx="${x(live)}" cy="8" r="3.6" fill="var(${tagVar[cls]})" stroke="var(--bg)" stroke-width="1.2"/>
 </svg>`;
 }
+
+function renderCommandCenter(){
+  if(!Array.isArray(list)||!list.length)return;
+  const rows=list.map(r=>{
+    const signal=classify(r.live,r.s200,r.rsi);
+    const dist=((r.live-r.s200)/r.s200)*100;
+    return {r:r,signal:signal,dist:dist};
+  });
+  const setup=rows.slice().sort((a,b)=>{
+    const aScore=(a.r.live<=a.r.s200?3:0)+(a.r.rsi<=40?3:0)+(a.dist<15?1:0);
+    const bScore=(b.r.live<=b.r.s200?3:0)+(b.r.rsi<=40?3:0)+(b.dist<15?1:0);
+    return bScore-aScore || a.r.rsi-b.r.rsi;
+  })[0];
+  const momentum=rows.filter(x=>x.r.rsi<75).slice().sort((a,b)=>b.r.rsi-a.r.rsi)[0]||rows.slice().sort((a,b)=>b.r.rsi-a.r.rsi)[0];
+  const risk=rows.slice().sort((a,b)=>b.dist-a.dist)[0];
+
+  const pfRows=portfolio.map(h=>({h:h,live:portfolioPrice(h)}));
+  const pfTotal=pfRows.reduce((s,x)=>s+x.h.shares*x.live,0);
+  const pfTop=pfRows.slice().sort((a,b)=>(b.h.shares*b.live)-(a.h.shares*a.live))[0];
+  const concentration=pfTop&&pfTotal?100*(pfTop.h.shares*pfTop.live)/pfTotal:null;
+
+  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+  set('ccSetup',setup?setup.r.t:'—');
+  set('ccSetupMeta',setup?setup.signal[0]+' · RSI '+setup.r.rsi.toFixed(1)+' · '+(setup.dist>=0?'+':'')+setup.dist.toFixed(1)+'% vs 200 SMA':'Waiting for watchlist data');
+  set('ccMomentum',momentum?momentum.r.t:'—');
+  set('ccMomentumMeta',momentum?'RSI '+momentum.r.rsi.toFixed(1)+' · '+momentum.signal[0]:'Highest healthy RSI profile');
+  set('ccRisk',risk?risk.r.t:'—');
+  set('ccRiskMeta',risk?(risk.dist>=0?'+':'')+risk.dist.toFixed(1)+'% vs 200 SMA · RSI '+risk.r.rsi.toFixed(1):'Furthest above long-term trend');
+  set('ccConcentration',concentration!=null?concentration.toFixed(1)+'%':'—');
+  set('ccConcentrationMeta',concentration!=null?(pfTop.h.t+' is largest position'):'Add holdings to calculate exposure');
+  set('ccRadarCount',rows.length+' names');
+
+  const spark=document.getElementById('ccSetupSpark');
+  if(spark&&setup){
+    const points=[setup.r.s200,setup.r.s50,setup.r.live],min=Math.min(...points),max=Math.max(...points),span=(max-min)||1;
+    spark.innerHTML='<div class="spark-line"><i style="left:'+(((setup.r.s200-min)/span)*100)+'%"></i><i class="mid" style="left:'+(((setup.r.s50-min)/span)*100)+'%"></i><i class="live" style="left:'+(((setup.r.live-min)/span)*100)+'%"></i></div><div class="spark-labels"><span>200 SMA</span><span>50 SMA</span><span>Live</span></div>';
+  }
+
+  const radar=document.getElementById('ccRadar');
+  if(radar){
+    const rank={green:0,yellow:1,purple:2,pink:3,rose:4};
+    radar.innerHTML=rows.slice().sort((a,b)=>(rank[a.signal[1]]??9)-(rank[b.signal[1]]??9)||a.r.rsi-b.r.rsi).slice(0,7).map(x=>
+      '<button class="radar-row" onclick="document.getElementById(\'analysis\').scrollIntoView({behavior:\'smooth\'});setTimeout(()=>{const i=list.findIndex(r=>r.t===\''+x.r.t+'\');if(i>=0)showInfo(i);},450)"><span class="radar-dot '+x.signal[1]+'"></span><b>'+x.r.t+'</b><span>'+x.signal[0]+'</span><em>RSI '+x.r.rsi.toFixed(0)+'</em></button>'
+    ).join('');
+  }
+}
+
 function renderPremiumHero(){
+renderCommandCenter();
 const counts={green:0,yellow:0,purple:0,pink:0,rose:0};
 let below=0,rsiSum=0,floorSum=0;
 list.forEach(r=>{
