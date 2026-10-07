@@ -161,6 +161,15 @@ a:hover{border-bottom-color:var(--gold)}
 
 </section>
 
+
+<section id="todayFocus" class="today-focus-section">
+  <div class="focus-head">
+    <div><span class="kicker">Today’s focus</span><h2>Three names worth opening first</h2></div>
+    <span class="focus-caption">Ranked from your mechanical signal set</span>
+  </div>
+  <div id="todayFocusCards" class="focus-cards"></div>
+</section>
+
 <section id="visualIntel" class="visual-intel-section">
   <div class="section-head">
     <div><span class="kicker">Visual intelligence</span><h2>Opportunity map</h2></div>
@@ -256,7 +265,10 @@ a:hover{border-bottom-color:var(--gold)}
 <section id="analysis">
 <div class="section-head">
   <div><span class="kicker">Analysis desk</span><h2>Stock analysis workspace</h2></div>
-  <div class="section-note">Live price · SMA · RSI · fundamentals · earnings · news</div>
+  <div class="analysis-head-actions">
+    <button id="analysisModeBtn" class="ghost compact" onclick="toggleAnalysisMode()" title="Show a tighter decision-first table">Compact view</button>
+    <div class="section-note">Live price · SMA · RSI · fundamentals · earnings · news</div>
+  </div>
 </div>
 <div id="signalSummary" class="row" style="margin-bottom:14px"></div>
 <div class="row">
@@ -275,7 +287,7 @@ a:hover{border-bottom-color:var(--gold)}
 </section>
 
 <section id="reference">
-<span class="kicker">Reference</span><h2>Column legend — what each metric means and why it matters</h2>
+<div class="section-title-row"><div><span class="kicker">Reference</span><h2>Column legend — what each metric means and why it matters</h2></div><button class="ghost compact section-collapse" onclick="toggleGuideSection('reference',this)">Collapse</button></div>
 <div class="wrap"><table><thead><tr><th style="text-align:left">Column</th><th style="text-align:left">What it is</th><th style="text-align:left">Why it matters</th></tr></thead><tbody>
 <tr><td style="text-align:left"><b>Live</b></td><td style="text-align:left">Latest traded price</td><td style="text-align:left">The baseline every other column is measured against.</td></tr>
 <tr><td style="text-align:left"><b>Trend</b></td><td style="text-align:left">A dot plot: gray dot = 200 SMA, gold dot = 50 SMA, bright dot = live price, colored by status</td><td style="text-align:left">A one-glance read on where price sits relative to both trend lines, without reading three separate numbers.</td></tr>
@@ -302,9 +314,17 @@ None of these tags are financial advice — they're a mechanical read of price/m
 </section>
 
 <section id="caveats">
-<span class="kicker">Read carefully</span><h2>How to read this — assumptions &amp; caveats</h2>
+<div class="section-title-row"><div><span class="kicker">Read carefully</span><h2>How to read this — assumptions &amp; caveats</h2></div><button class="ghost compact section-collapse" onclick="toggleGuideSection('caveats',this)">Collapse</button></div>
 <ul class="rec" id="recs"></ul>
 </section>
+
+
+<div id="toastStack" class="toast-stack" aria-live="polite"></div>
+<nav class="mobile-dock" aria-label="Quick navigation">
+  <a href="#analysis"><span>⌁</span>Analyze</a>
+  <a href="#compare"><span>↔</span>Compare</a>
+  <a href="#portfolio"><span>◫</span>Portfolio</a>
+</nav>
 
 <script>
 document.getElementById('asof').textContent=new Date().toLocaleDateString();
@@ -342,9 +362,9 @@ function addHolding(){
   const t=document.getElementById('pfTicker').value.trim().toUpperCase(),shares=parseFloat(document.getElementById('pfShares').value),avgCost=parseFloat(document.getElementById('pfAvgCost').value);
   if(!t||!Number.isFinite(shares)||shares<=0||!Number.isFinite(avgCost)||avgCost<0){document.getElementById('pfNote').textContent='Enter a ticker, number of shares, and average cost.';return;}
   const existing=portfolio.find(h=>h.t===t),current=list.find(r=>r.t===t);if(existing){existing.shares=shares;existing.avgCost=avgCost;if(current)existing.live=current.live;}else portfolio.push({t:t,shares:shares,avgCost:avgCost,live:current?current.live:avgCost});
-  savePortfolio();renderPortfolio();renderCommandCenter();document.getElementById('pfNote').textContent=t+' holding saved on this device.';
+  savePortfolio();renderPortfolio();renderCommandCenter();document.getElementById('pfNote').textContent=t+' holding saved on this device.';showToast(t+' holding saved');
 }
-function removeHolding(i){portfolio.splice(i,1);savePortfolio();renderPortfolio();renderCommandCenter();}
+function removeHolding(i){const removed=portfolio[i]&&portfolio[i].t;portfolio.splice(i,1);savePortfolio();renderPortfolio();renderCommandCenter();if(removed)showToast(removed+' removed from Portfolio','info');}
 async function refreshPortfolioPrices(){
   const key=document.getElementById('fmpKey').value.trim();if(!key){document.getElementById('pfNote').textContent='Paste your Twelve Data API key in Stock analysis first.';return;}
   const note=document.getElementById('pfNote');note.textContent='Refreshing portfolio prices…';let failed=[];
@@ -455,6 +475,87 @@ async function runComparison(){
   results.innerHTML=callouts+'<div class="compare-card-grid">'+cards+'</div>'+table+
     '<div class="detail-disclaimer">“Relative edge” only marks the strongest value within this comparison for that metric. It is not a buy recommendation, and cross-sector valuation comparisons can be misleading.</div>';
   note.textContent='Comparison ready. Add API keys in Stock analysis for the fullest technical and fundamental view.';
+}
+
+
+const UX_PREF_KEY='goatInvestorUXV1';
+function showToast(message,type='ok'){
+  const stack=document.getElementById('toastStack');if(!stack)return;
+  const el=document.createElement('div');el.className='toast '+type;el.textContent=message;stack.appendChild(el);
+  requestAnimationFrame(()=>el.classList.add('show'));
+  setTimeout(()=>{el.classList.remove('show');setTimeout(()=>el.remove(),220);},2500);
+}
+function toggleAnalysisMode(){
+  const section=document.getElementById('analysis'),btn=document.getElementById('analysisModeBtn');
+  const compact=!section.classList.contains('analysis-compact');
+  section.classList.toggle('analysis-compact',compact);
+  if(btn)btn.textContent=compact?'Expanded view':'Compact view';
+  try{localStorage.setItem(UX_PREF_KEY,JSON.stringify({compact:compact}));}catch(e){}
+  showToast(compact?'Compact analysis enabled':'Expanded analysis restored');
+}
+function restoreUXPrefs(){
+  try{
+    const prefs=JSON.parse(localStorage.getItem(UX_PREF_KEY)||'{}');
+    if(prefs.compact){
+      const section=document.getElementById('analysis'),btn=document.getElementById('analysisModeBtn');
+      if(section)section.classList.add('analysis-compact');
+      if(btn)btn.textContent='Expanded view';
+    }
+  }catch(e){}
+}
+function toggleGuideSection(id,btn){
+  const el=document.getElementById(id);if(!el)return;
+  const collapsed=el.classList.toggle('guide-collapsed');
+  if(btn)btn.textContent=collapsed?'Expand':'Collapse';
+}
+function addToCompare(ticker){
+  const ids=['cmp1','cmp2','cmp3','cmp4'];
+  const existing=ids.find(id=>document.getElementById(id).value.trim().toUpperCase()===ticker);
+  if(existing){showToast(ticker+' is already in Compare','info');document.getElementById('compare').scrollIntoView({behavior:'smooth'});return;}
+  const slot=ids.find(id=>!document.getElementById(id).value.trim());
+  if(!slot){showToast('Compare already has four names','info');document.getElementById('compare').scrollIntoView({behavior:'smooth'});return;}
+  document.getElementById(slot).value=ticker;
+  document.getElementById('compare').scrollIntoView({behavior:'smooth'});
+  showToast(ticker+' added to Compare');
+}
+function prepPortfolioAdd(ticker,price){
+  const t=document.getElementById('pfTicker'),cost=document.getElementById('pfAvgCost'),shares=document.getElementById('pfShares');
+  if(t)t.value=ticker;if(cost&&!cost.value)cost.value=Number(price).toFixed(2);
+  document.getElementById('portfolio').scrollIntoView({behavior:'smooth'});
+  setTimeout(()=>{if(shares)shares.focus();},450);
+  showToast(ticker+' ready to add to Portfolio');
+}
+function renderTodayFocus(){
+  const host=document.getElementById('todayFocusCards');if(!host||!Array.isArray(list)||!list.length)return;
+  const ranked=list.map((r,i)=>{
+    const sig=classify(r.live,r.s200,r.rsi),dist=((r.live-r.s200)/r.s200)*100;
+    const score=(r.live<=r.s200?4:0)+(r.rsi<=40?3:0)+(dist<15?1:0)+(r.vol>=1?0.5:0)-(r.rsi>70?2:0)-(dist>30?2:0);
+    return {r:r,i:i,sig:sig,dist:dist,score:score};
+  }).sort((a,b)=>b.score-a.score||a.r.rsi-b.r.rsi).slice(0,3);
+  const reasons=x=>{
+    if(x.r.live<=x.r.s200&&x.r.rsi<=40)return 'Below 200 SMA with subdued momentum';
+    if(x.r.live<=x.r.s200)return 'Trading below its long-term trend';
+    if(x.dist<15&&x.r.rsi<55)return 'Near the long-term trend with moderate RSI';
+    return 'Highest relative priority in the current watchlist';
+  };
+  host.innerHTML=ranked.map((x,n)=>'<button class="focus-card" onclick="document.getElementById(\'analysis\').scrollIntoView({behavior:\'smooth\'});setTimeout(()=>showInfo('+x.i+'),430)">'+
+    '<div class="focus-rank">0'+(n+1)+'</div>'+
+    '<div class="focus-body"><div class="focus-ticker-row"><b>'+x.r.t+'</b><span class="tag t-'+x.sig[1]+'">'+x.sig[0]+'</span></div>'+
+    '<div class="focus-reason">'+reasons(x)+'</div>'+
+    '<div class="focus-metrics"><span>RSI <strong>'+x.r.rsi.toFixed(1)+'</strong></span><span>vs 200 SMA <strong class="'+(x.dist>=0?'up':'dn')+'">'+(x.dist>=0?'+':'')+x.dist.toFixed(1)+'%</strong></span><span>Vol <strong>'+x.r.vol.toFixed(2)+'x</strong></span></div></div>'+
+    '<div class="focus-arrow">↗</div></button>').join('');
+}
+function applyMetricTooltips(){
+  const tips={
+    '200 SMA':'Long-term moving average. Helps judge whether price is extended or depressed versus its recent trend.',
+    '50 SMA':'Medium-term moving average. Useful for trend direction versus the 200 SMA.',
+    'RSI14':'14-period Relative Strength Index. Lower values indicate weaker momentum; higher values indicate stronger or stretched momentum.',
+    'Vol Str.':'Relative trading-volume strength. Above 1x means unusually heavy activity versus the comparison baseline.',
+    'Struct. Risk':'Difference between the 50 SMA and 200 SMA, expressed as a percentage.',
+    'Dist→Floor':'Distance between live price and the 200 SMA.',
+    '%→Target':'Gap between the live price and your manually entered target.'
+  };
+  document.querySelectorAll('#wlTbl th').forEach(th=>{const key=th.textContent.trim();if(tips[key]){th.title=tips[key];th.classList.add('has-tip');}});
 }
 
 // ---- watchlist / DCA data, cached fallback values from your sheet — a starting set, add/remove freely ----
@@ -598,6 +699,7 @@ function renderCommandCenter(){
 function renderPremiumHero(){
 renderCommandCenter();
 renderVisualIntelligence();
+renderTodayFocus();
 const counts={green:0,yellow:0,purple:0,pink:0,rose:0};
 let below=0,rsiSum=0,floorSum=0;
 list.forEach(r=>{
@@ -638,7 +740,7 @@ return `<tr><td>${r.t}</td><td class="mono">${r.lst}</td><td>${rangeSVG(r.s200,r
 <td class="mono ${structRisk>=0?'up':'dn'}">${(structRisk*100).toFixed(1)}%</td><td class="mono ${distFloor>=0?'up':'dn'}">${(distFloor*100).toFixed(1)}%</td>
 <td class="mono">${r.target?'$'+r.target:'—'}</td><td class="mono">${pctT!==null?(pctT*100).toFixed(1)+'%':'—'}</td>
 <td class="mono">${r.stop?'$'+r.stop:'—'}</td><td><span class="tag t-${cls}">${lab}</span></td><td class="mono">${earn}</td>
-<td><button class="ghost" onclick="showInfo(${i})">Info</button> <button class="ghost" onclick="removeRow(${i})">✕</button></td></tr>`;
+<td class="row-actions"><button class="ghost" onclick="showInfo(${i})">Info</button> <button class="ghost quick-compare" onclick="addToCompare('${r.t}')" title="Add to stock comparison">↔</button> <button class="ghost" onclick="removeRow(${i})">✕</button></td></tr>`;
 }).join('');
 }
 function removeRow(i){list.splice(i,1);renderList();}
@@ -809,6 +911,10 @@ panel.innerHTML=`<section class="stock-detail-shell">
   <div class="detail-price-box">
     <div class="detail-price">$${r.live.toFixed(2)}</div>
     <div class="detail-price-note">Latest dashboard price</div>
+    <div class="detail-quick-actions">
+      <button class="ghost compact" onclick="addToCompare('${r.t}')">↔ Compare</button>
+      <button class="ghost compact" onclick="prepPortfolioAdd('${r.t}',${r.live})">＋ Portfolio</button>
+    </div>
   </div>
 </div>
 
@@ -967,6 +1073,8 @@ document.getElementById('recs').innerHTML=[
   navLinks.forEach(a=>a.addEventListener('click',()=>{
     navLinks.forEach(x=>x.classList.remove('active'));a.classList.add('active');
   }));
+  restoreUXPrefs();
+  applyMetricTooltips();
 })();
 </script>
 </body>
