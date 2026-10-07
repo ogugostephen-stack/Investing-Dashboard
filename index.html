@@ -79,6 +79,7 @@ a:hover{border-bottom-color:var(--gold)}
     <div class="brand-copy"><strong>Goat Investor</strong><span>Private market intelligence desk</span></div>
   </div>
   <nav class="topnav">
+    <a href="#portfolio">Portfolio</a>
     <a href="#analysis">Stock analysis</a>
     <a href="#reference">Methodology</a>
     <a href="#caveats">Risk notes</a>
@@ -108,6 +109,46 @@ a:hover{border-bottom-color:var(--gold)}
   <div class="premium-kpi"><div class="label">Average RSI</div><div class="value" id="kpiRsi">—</div><div class="meta">Portfolio-level momentum pulse</div></div>
   <div class="premium-kpi"><div class="label">Avg. distance to floor</div><div class="value" id="kpiFloor">—</div><div class="meta">Price versus long-term trend</div></div>
 </div>
+
+
+<section id="portfolio" class="portfolio-section">
+  <div class="section-head">
+    <div><span class="kicker">Portfolio</span><h2>Holdings & concentration</h2></div>
+    <div class="section-note">Manual holdings · live value via Twelve Data · saved on this device</div>
+  </div>
+
+  <div class="portfolio-summary">
+    <div class="portfolio-stat"><span>Portfolio value</span><strong id="pfValue">$0.00</strong><small id="pfValueMeta">No holdings yet</small></div>
+    <div class="portfolio-stat"><span>Cost basis</span><strong id="pfCost">$0.00</strong><small>Total invested</small></div>
+    <div class="portfolio-stat"><span>Unrealized P/L</span><strong id="pfPnl">$0.00</strong><small id="pfPnlPct">0.0%</small></div>
+    <div class="portfolio-stat"><span>Largest position</span><strong id="pfTop">—</strong><small id="pfTopPct">0.0% concentration</small></div>
+  </div>
+
+  <div class="portfolio-entry">
+    <input id="pfTicker" placeholder="Ticker e.g. NVDA" maxlength="8">
+    <input id="pfShares" type="number" min="0" step="any" placeholder="Shares">
+    <input id="pfAvgCost" type="number" min="0" step="any" placeholder="Average cost">
+    <button onclick="addHolding()">Add / Update holding</button>
+    <button class="ghost" onclick="refreshPortfolioPrices()">Refresh live prices</button>
+  </div>
+  <div class="note" id="pfNote">Holdings are stored only in your browser. Live prices use the same Twelve Data API key entered in Stock analysis.</div>
+
+  <div class="portfolio-layout">
+    <div class="portfolio-table-card">
+      <div class="portfolio-card-head"><span>Holdings</span><span id="pfCount">0 positions</span></div>
+      <div class="wrap">
+        <table id="portfolioTable">
+          <thead><tr><th>Ticker</th><th>Shares</th><th>Avg cost</th><th>Live</th><th>Value</th><th>P/L</th><th>Return</th><th>Weight</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="allocation-card">
+      <div class="portfolio-card-head"><span>Allocation</span><span>By market value</span></div>
+      <div id="allocationBars" class="allocation-bars"></div>
+    </div>
+  </div>
+</section>
 
 <section id="analysis">
 <div class="section-head">
@@ -164,6 +205,505 @@ None of these tags are financial advice — they're a mechanical read of price/m
 
 <script>
 document.getElementById('asof').textContent=new Date().toLocaleDateString();
+
+const PORTFOLIO_KEY='goatInvestorPortfolioV1';
+let portfolio=(()=>{
+  try{return JSON.parse(localStorage.getItem(PORTFOLIO_KEY)||'[]');}
+  catch(e){return [];}
+})();
+function savePortfolio(){
+  try{localStorage.setItem(PORTFOLIO_KEY,JSON.stringify(portfolio));}catch(e){}
+}
+function money(v){
+  return '
+
+// ---- watchlist / DCA data, cached fallback values from your sheet — a starting set, add/remove freely ----
+let list=[
+{t:'AVGO',lst:'AI-Infra',live:349.88,s200:368.97,s50:377.74,rsi:41.7,vol:0.84,target:312.5,stop:285},
+{t:'ANET',lst:'AI-Infra',live:206.63,s200:155.95,s50:188.85,rsi:60.2,vol:0.77,target:116,stop:105},
+{t:'ETN',lst:'AI-Infra',live:438.5,s200:385.14,s50:417.78,rsi:58.4,vol:0.92,target:295,stop:260},
+{t:'VRT',lst:'AI-Infra',live:251.59,s200:260.46,s50:268.91,rsi:47.1,vol:0.79,target:139,stop:120},
+{t:'MRVL',lst:'AI-Infra',live:259.56,s200:160.07,s50:218.89,rsi:62.2,vol:0.79,target:73.5,stop:64},
+{t:'CELH',lst:'DCA',live:28.4,s200:37.04,s50:29.55,rsi:45.3,vol:0.8,target:43,stop:38},
+{t:'SOFI',lst:'DCA',live:16.74,s200:19.51,s50:17.63,rsi:43.0,vol:1.18,target:27,stop:21},
+{t:'META',lst:'DCA',live:749.49,s200:626.69,s50:616.97,rsi:70.7,vol:1.95,target:650,stop:630},
+{t:'AMD',lst:'DCA',live:630.46,s200:359.16,s50:504.11,rsi:73.0,vol:1.76,target:203,stop:157},
+{t:'ADBE',lst:'DCA',live:239.26,s200:264.82,s50:255.6,rsi:38.6,vol:0.82,target:350,stop:280},
+{t:'GOOG',lst:'DCA',live:339.39,s200:336.21,s50:343.23,rsi:48.6,vol:0.89,target:290,stop:205},
+{t:'AMZN',lst:'DCA',live:248.09,s200:240.52,s50:255.83,rsi:43.0,vol:1.03,target:222,stop:211},
+{t:'SHOP',lst:'DCA',live:142.01,s200:130.69,s50:136.88,rsi:53.2,vol:1.49,target:160,stop:141},
+];
+
+function classify(px,s200,rsi){
+const distToFloor=(px-s200)/s200;
+if(px<=s200 && rsi<=40) return ['STRIKE — buy','green'];
+if(px<=s200) return ['Buy zone','green'];
+if(distToFloor<0.15 && rsi<55) return ['Watch','yellow'];
+if(rsi>75 || distToFloor>0.5) return ['Extreme danger','rose'];
+if(rsi>65 || distToFloor>0.25) return ['Expensive / risk','pink'];
+return ['Momentum','purple'];
+}
+const tagVar={green:'--buyT',yellow:'--watchT',purple:'--momT',pink:'--riskT',rose:'--dangerT'};
+let gradId=0;
+function rangeSVG(s200,s50,live,cls){
+const vals=[s200,s50,live],min=Math.min(...vals)*0.96,max=Math.max(...vals)*1.04,span=(max-min)||1;
+const x=v=>((v-min)/span)*96+2;
+const gid='rg'+(gradId++);
+return `<svg width="76" height="16" viewBox="0 0 100 16" style="display:block;overflow:visible">
+<defs><linearGradient id="${gid}" x1="0" x2="1"><stop offset="0%" stop-color="var(--dim2)"/><stop offset="55%" stop-color="var(--gold-dim)"/><stop offset="100%" stop-color="var(${tagVar[cls]})"/></linearGradient></defs>
+<line x1="${x(s200)}" y1="8" x2="${x(live)}" y2="8" stroke="url(#${gid})" stroke-width="1.5"/>
+<circle cx="${x(s200)}" cy="8" r="2.2" fill="var(--dim2)"/>
+<circle cx="${x(s50)}" cy="8" r="2.2" fill="var(--gold-dim)"/>
+<circle cx="${x(live)}" cy="8" r="3.6" fill="var(${tagVar[cls]})" stroke="var(--bg)" stroke-width="1.2"/>
+</svg>`;
+}
+function renderPremiumHero(){
+const counts={green:0,yellow:0,purple:0,pink:0,rose:0};
+let below=0,rsiSum=0,floorSum=0;
+list.forEach(r=>{
+  const [,cls]=classify(r.live,r.s200,r.rsi); counts[cls]=(counts[cls]||0)+1;
+  if(r.live<=r.s200) below++;
+  rsiSum+=r.rsi;
+  floorSum+=((r.live-r.s200)/r.s200)*100;
+});
+const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v;};
+set('heroBuy',counts.green||0);
+set('heroWatch',counts.yellow||0);
+set('heroRisk',(counts.pink||0)+(counts.rose||0));
+set('kpiTracked',list.length);
+set('kpiBelow',below);
+set('kpiRsi',list.length?(rsiSum/list.length).toFixed(1):'—');
+set('kpiFloor',list.length?((floorSum/list.length)>=0?'+':'')+(floorSum/list.length).toFixed(1)+'%':'—');
+}
+function renderSummary(){
+renderPremiumHero();
+const counts={};
+list.forEach(r=>{const [,cls]=classify(r.live,r.s200,r.rsi);counts[cls]=(counts[cls]||0)+1;});
+const order=[['green','Buy / STRIKE'],['yellow','Watch'],['purple','Momentum'],['pink','Expensive'],['rose','Danger']];
+document.getElementById('signalSummary').innerHTML=order.filter(([c])=>counts[c]).map(([c,label])=>
+`<span class="tag t-${c}">${counts[c]} ${label}</span>`).join('')||'<span class="note">Add a ticker to see a signal breakdown here.</span>';
+}
+function renderList(){
+renderSummary();
+document.getElementById('wlTbl').querySelector('tbody').innerHTML=list.map((r,i)=>{
+const structRisk=(r.s50-r.s200)/r.s200, distFloor=(r.live-r.s200)/r.s200, pctT=r.target?((r.live-r.target)/r.live):null;
+const [lab,cls]=classify(r.live,r.s200,r.rsi);
+let earn='—';
+if(r.nextEarnings){
+const d=Math.round((new Date(r.nextEarnings)-new Date())/86400000);
+earn=`<span class="${d<=10?'dn':''}">${r.nextEarnings}${d<=10?' ⚠':''}</span>`;
+}
+return `<tr><td>${r.t}</td><td class="mono">${r.lst}</td><td>${rangeSVG(r.s200,r.s50,r.live,cls)}</td><td class="mono">$${r.live.toFixed(2)}</td><td class="mono">$${r.s200.toFixed(2)}</td>
+<td class="mono">$${r.s50.toFixed(2)}</td><td class="mono">${r.rsi.toFixed(1)}</td><td class="mono">${r.vol.toFixed(2)}x</td>
+<td class="mono ${structRisk>=0?'up':'dn'}">${(structRisk*100).toFixed(1)}%</td><td class="mono ${distFloor>=0?'up':'dn'}">${(distFloor*100).toFixed(1)}%</td>
+<td class="mono">${r.target?'$'+r.target:'—'}</td><td class="mono">${pctT!==null?(pctT*100).toFixed(1)+'%':'—'}</td>
+<td class="mono">${r.stop?'$'+r.stop:'—'}</td><td><span class="tag t-${cls}">${lab}</span></td><td class="mono">${earn}</td>
+<td><button class="ghost" onclick="showInfo(${i})">Info</button> <button class="ghost" onclick="removeRow(${i})">✕</button></td></tr>`;
+}).join('');
+}
+function removeRow(i){list.splice(i,1);renderList();}
+renderList();
+renderPortfolio();
+
+async function fetchTD(ticker,key){
+const qResp=await fetch(`https://api.twelvedata.com/quote?symbol=${ticker}&apikey=${key}`);
+if(!qResp.ok) throw new Error('Quote request failed: HTTP '+qResp.status);
+const q=await qResp.json();
+if(q.status==='error'||q.code) throw new Error('Twelve Data error: '+(q.message||'unknown'));
+const hResp=await fetch(`https://api.twelvedata.com/time_series?symbol=${ticker}&interval=1day&outputsize=300&apikey=${key}`);
+if(!hResp.ok) throw new Error('History request failed: HTTP '+hResp.status);
+const h=await hResp.json();
+if(h.status==='error'||h.code) throw new Error('Twelve Data error: '+(h.message||'unknown'));
+if(!h.values||!h.values.length) throw new Error('No historical data returned for "'+ticker+'".');
+const hist=h.values.slice().reverse(); // oldest -> newest
+const closes=hist.map(d=>parseFloat(d.close));
+const sma=(n)=>closes.slice(-n).reduce((a,b)=>a+b,0)/Math.min(n,closes.length);
+const rsi=computeRSI(closes,14);
+const px=parseFloat(q.close);
+const vol=(q.volume&&q.average_volume)?parseFloat(q.volume)/parseFloat(q.average_volume):1;
+return {live:px,s200:sma(200),s50:sma(50),rsi,vol};
+}
+function computeRSI(closes,period){
+let gains=0,losses=0;
+for(let i=closes.length-period;i<closes.length;i++){const ch=closes[i]-closes[i-1];if(ch>0)gains+=ch;else losses-=ch;}
+gains/=period;losses/=period;
+if(losses===0)return 100;
+return 100-100/(1+gains/losses);
+}
+async function fetchFinnhub(ticker,key){
+const d=s=>s.toISOString().slice(0,10);
+const today=new Date(), in30=new Date(Date.now()+30*86400000), back14=new Date(Date.now()-14*86400000);
+const safe=async(p)=>{try{const r=await p;const j=await r.json();return (j&&j.error)?null:j;}catch(e){return null;}};
+const [prof,eps,cal,news,metric,rec,pt]=await Promise.all([
+safe(fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${ticker}&token=${key}`)),
+safe(fetch(`https://finnhub.io/api/v1/stock/earnings?symbol=${ticker}&token=${key}`)),
+safe(fetch(`https://finnhub.io/api/v1/calendar/earnings?from=${d(today)}&to=${d(in30)}&symbol=${ticker}&token=${key}`)),
+safe(fetch(`https://finnhub.io/api/v1/company-news?symbol=${ticker}&from=${d(back14)}&to=${d(today)}&token=${key}`)),
+safe(fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${ticker}&metric=all&token=${key}`)),
+safe(fetch(`https://finnhub.io/api/v1/stock/recommendation?symbol=${ticker}&token=${key}`)),
+safe(fetch(`https://finnhub.io/api/v1/stock/price-target?symbol=${ticker}&token=${key}`))
+]);
+if(!prof) throw new Error('Finnhub profile lookup failed — check your key/ticker.');
+const nextEarnings=cal&&cal.earningsCalendar&&cal.earningsCalendar.length?cal.earningsCalendar[0].date:null;
+const m=(metric&&metric.metric)||{};
+const pick=(...keys)=>{for(const k of keys){if(m[k]!=null)return m[k];}return null;};
+const peTTM=pick('peTTM','peBasicExclExtraTTM','peExclExtraTTM','peNormalizedAnnual');
+const fund={
+pb:pick('pbAnnual','pbQuarterly','ptbvAnnual'),
+ps:pick('psTTM','psAnnual'),
+roe:pick('roeTTM','roeRfy','roeAnnual'),
+roa:pick('roaTTM','roaRfy','roaAnnual'),
+currentRatio:pick('currentRatioAnnual','currentRatioQuarterly'),
+debtEquity:pick('totalDebt/totalEquityAnnual','totalDebt/totalEquityQuarterly','totalDebtToEquityAnnual'),
+grossMargin:pick('grossMarginTTM','grossMarginAnnual'),
+opMargin:pick('operatingMarginTTM','operatingMarginAnnual'),
+netMargin:pick('netProfitMarginTTM','netProfitMarginAnnual'),
+beta:pick('beta'),
+divYield:pick('dividendYieldIndicatedAnnual','currentDividendYieldTTM'),
+w52h:pick('52WeekHigh'),
+w52l:pick('52WeekLow')
+};
+const recLatest=(Array.isArray(rec)&&rec.length)?rec[0]:null;
+return {profile:prof,eps:(Array.isArray(eps)?eps:[]).slice(0,4),nextEarnings,news:(Array.isArray(news)?news:[]).slice(0,3),
+peTTM,fund,rec:recLatest,priceTarget:pt&&pt.targetMean?pt:null};
+}
+async function fetchROIC(ticker,key){
+const r=await fetch(`https://api.roic.ai/v2/fundamental/ratios/credit/${ticker}?apikey=${key}`);
+if(!r.ok) throw new Error('roic.ai credit request failed: HTTP '+r.status);
+const j=await r.json();
+console.log('roic.ai credit raw response for',ticker,j);
+const row=Array.isArray(j)?j[0]:(j&&j.data&&Array.isArray(j.data)?j.data[0]:j);
+if(!row) throw new Error('Unexpected response shape from roic.ai credit endpoint — see console.');
+const pick=(obj,...keys)=>{for(const k of keys){if(obj[k]!=null)return obj[k];}return null;};
+const debtEbitda=pick(row,'tot_debt_to_ebitda','total_debt_to_ebitda','totDebtToEbitda','net_debt_to_ebitda');
+let z=null,liquidityRaw=null;
+try{
+const lr=await fetch(`https://api.roic.ai/v2/fundamental/ratios/liquidity/${ticker}?apikey=${key}`);
+if(lr.ok){
+const lj=await lr.json();
+console.log('roic.ai liquidity raw response for',ticker,lj);
+liquidityRaw=lj;
+const lrow=Array.isArray(lj)?lj[0]:(lj&&lj.data&&Array.isArray(lj.data)?lj.data[0]:lj);
+if(lrow)z=pick(lrow,'altman_z_score','altmanZScore','z_score','altman_z','altmanZ');
+}
+}catch(e){}
+return {debtEbitda,altmanZ:z,rawCredit:row,rawLiquidity:liquidityRaw};
+}
+function detailMetric(label,value,meta=''){
+return `<div class="detail-metric"><div class="detail-label">${label}</div><div class="detail-value">${value}</div>${meta?`<div class="detail-meta">${meta}</div>`:''}</div>`;
+}
+function detailTab(name,label,active=false){
+return `<button class="detail-tab ${active?'active':''}" data-tab="${name}" onclick="switchDetailTab('${name}')">${label}</button>`;
+}
+function switchDetailTab(name){
+document.querySelectorAll('#detailPanel .detail-tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+document.querySelectorAll('#detailPanel .detail-tab-panel').forEach(p=>p.classList.toggle('active',p.dataset.panel===name));
+}
+function lineChartSVG(values,sma50,sma200){
+if(!values||values.length<2)return '<div class="detail-empty">Price history unavailable.</div>';
+const w=900,h=260,pad=18;
+const all=[...values,...sma50.filter(Number.isFinite),...sma200.filter(Number.isFinite)];
+const min=Math.min(...all),max=Math.max(...all),span=(max-min)||1;
+const x=i=>pad+(i/(values.length-1))*(w-pad*2);
+const y=v=>h-pad-((v-min)/span)*(h-pad*2);
+const path=arr=>arr.map((v,i)=>Number.isFinite(v)?(`${i?'L':'M'} ${x(i).toFixed(1)} ${y(v).toFixed(1)}`):'').filter(Boolean).join(' ');
+return `<svg class="detail-chart-svg" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-label="Price history chart">
+<line x1="${pad}" y1="${h-pad}" x2="${w-pad}" y2="${h-pad}" class="chart-grid"/>
+<line x1="${pad}" y1="${pad}" x2="${w-pad}" y2="${pad}" class="chart-grid"/>
+<path d="${path(sma200)}" class="chart-line sma200"/>
+<path d="${path(sma50)}" class="chart-line sma50"/>
+<path d="${path(values)}" class="chart-line price"/>
+</svg>
+<div class="chart-legend"><span><i class="price-dot"></i>Price</span><span><i class="sma50-dot"></i>50 SMA</span><span><i class="sma200-dot"></i>200 SMA</span></div>`;
+}
+async function fetchTDHistory(ticker,key){
+if(!key)return null;
+const hResp=await fetch(`https://api.twelvedata.com/time_series?symbol=${ticker}&interval=1day&outputsize=220&apikey=${key}`);
+if(!hResp.ok)return null;
+const h=await hResp.json();
+if(h.status==='error'||!h.values||!h.values.length)return null;
+const hist=h.values.slice().reverse();
+const closes=hist.map(d=>parseFloat(d.close)).filter(Number.isFinite);
+const rolling=(n)=>closes.map((_,i)=>{
+  if(i<n-1)return NaN;
+  const s=closes.slice(i-n+1,i+1);
+  return s.reduce((a,b)=>a+b,0)/n;
+});
+return {closes,sma50:rolling(50),sma200:rolling(200)};
+}
+async function showInfo(i){
+const r=list[i], panel=document.getElementById('detailPanel');
+const key=document.getElementById('fhKey').value.trim();
+const tdKey=document.getElementById('fmpKey').value.trim();
+const roicKey=document.getElementById('roicKey').value.trim();
+if(!key){panel.innerHTML='<div class="dcard">⚠ Paste your Finnhub key above, then open the stock again.</div>';panel.scrollIntoView({behavior:'smooth',block:'center'});return;}
+const [sig,cls]=classify(r.live,r.s200,r.rsi);
+panel.innerHTML=`<section class="stock-detail-shell"><div class="detail-loading"><span class="loading-orb"></span>Loading ${r.t} intelligence…</div></section>`;
+panel.scrollIntoView({behavior:'smooth',block:'start'});
+try{
+const [d,history] = await Promise.all([fetchFinnhub(r.t,key),fetchTDHistory(r.t,tdKey)]);
+r.nextEarnings=d.nextEarnings; renderList();
+let roic=null,roicErr=null;
+if(roicKey){try{roic=await fetchROIC(r.t,roicKey);}catch(e){roicErr=e.message;}}
+const recTotal=d.rec?(d.rec.strongBuy+d.rec.buy+d.rec.hold+d.rec.sell+d.rec.strongSell):0;
+const recLabel=d.rec?(()=>{const score=(d.rec.strongBuy*2+d.rec.buy-d.rec.sell-d.rec.strongSell*2)/Math.max(recTotal,1);return score>1?'Strong Buy':score>0.3?'Buy':score>-0.3?'Hold':score>-1?'Sell':'Strong Sell';})():null;
+const epsRows=d.eps.map(e=>`<tr><td>${e.period}</td><td class="mono">${e.actual!=null?e.actual:'—'}</td><td class="mono">${e.estimate!=null?e.estimate:'—'}</td><td class="mono ${e.surprisePercent>=0?'up':'dn'}">${e.surprisePercent!=null?e.surprisePercent.toFixed(1)+'%':'—'}</td></tr>`).join('');
+const newsCards=d.news.map(n=>`<a class="news-card" href="${n.url}" target="_blank" rel="noopener"><div class="news-source">${n.source||'News'} · ${new Date(n.datetime*1000).toLocaleDateString()}</div><div class="news-title">${n.headline}</div><div class="news-link">Open story ↗</div></a>`).join('')||'<div class="detail-empty">No recent headlines in the last 14 days.</div>';
+const distFloor=(r.live-r.s200)/r.s200;
+const structRisk=(r.s50-r.s200)/r.s200;
+const targetGap=r.target?((r.target-r.live)/r.live)*100:null;
+const analystUpside=d.priceTarget?((d.priceTarget.targetMean-r.live)/r.live)*100:null;
+const riskNotes=[
+  r.rsi>70?'RSI is elevated: momentum may be stretched.':r.rsi<40?'RSI is subdued: momentum is near an oversold zone.':'RSI sits in a neutral-to-healthy band.',
+  distFloor>0.25?'Price is materially above its long-term trend.':distFloor<0?'Price is below the 200 SMA, which raises both value potential and trend risk.':'Price remains relatively close to its long-term trend.',
+  structRisk<0?'50 SMA is below the 200 SMA, a structural caution signal.':'50 SMA is above the 200 SMA, supporting medium-term trend strength.',
+  d.nextEarnings?'Next earnings: '+d.nextEarnings+'.':'No upcoming earnings date returned by Finnhub.'
+];
+panel.innerHTML=`<section class="stock-detail-shell">
+<div class="detail-head">
+  <div>
+    <div class="detail-eyebrow">Stock intelligence</div>
+    <div class="detail-title-row"><h2>${r.t}</h2><span class="detail-company">${d.profile.name||''}</span><span class="tag t-${cls}">${sig}</span></div>
+    <div class="detail-subline">${d.profile.exchange||'—'} · ${d.profile.finnhubIndustry||'—'}</div>
+  </div>
+  <div class="detail-price-box">
+    <div class="detail-price">$${r.live.toFixed(2)}</div>
+    <div class="detail-price-note">Latest dashboard price</div>
+  </div>
+</div>
+
+<div class="detail-metrics-grid">
+${detailMetric('200 SMA','$'+r.s200.toFixed(2),((distFloor*100)>=0?'+':'')+(distFloor*100).toFixed(1)+'% from floor')}
+${detailMetric('50 SMA','$'+r.s50.toFixed(2),((structRisk*100)>=0?'+':'')+(structRisk*100).toFixed(1)+'% vs 200 SMA')}
+${detailMetric('RSI 14',r.rsi.toFixed(1),r.rsi>=70?'Overbought zone':r.rsi<=40?'Oversold watch':'Neutral / healthy')}
+${detailMetric('Volume strength',r.vol.toFixed(2)+'x',r.vol>=1?'Above normal':'Below normal')}
+${detailMetric('Your target',r.target?'$'+r.target:'—',targetGap!=null?((targetGap>=0?'+':'')+targetGap.toFixed(1)+'% from live'):'Not set')}
+${detailMetric('Analyst target',d.priceTarget?'$'+d.priceTarget.targetMean.toFixed(2):'—',analystUpside!=null?((analystUpside>=0?'+':'')+analystUpside.toFixed(1)+'% implied'):'Unavailable')}
+</div>
+
+<div class="detail-tabs">
+${detailTab('overview','Overview',true)}
+${detailTab('fundamentals','Fundamentals')}
+${detailTab('earnings','Earnings')}
+${detailTab('news','News')}
+${detailTab('risk','Risk')}
+</div>
+
+<div class="detail-tab-panel active" data-panel="overview">
+  <div class="detail-two-col">
+    <div class="detail-panel-card">
+      <div class="detail-card-head"><div><span class="kicker">Price structure</span><h3>Trend vs moving averages</h3></div><div class="detail-chart-note">${history?'220 trading days':'Add Twelve Data key for chart'}</div></div>
+      ${history?lineChartSVG(history.closes,history.sma50,history.sma200):'<div class="detail-empty tall">Paste your Twelve Data key above to unlock the price + SMA chart.</div>'}
+    </div>
+    <div class="detail-panel-card">
+      <span class="kicker">Street view</span><h3>Analyst snapshot</h3>
+      <div class="snapshot-list">
+        <div><span>Consensus</span><b>${recLabel||'—'}</b></div>
+        <div><span>Analysts</span><b>${recTotal||'—'}</b></div>
+        <div><span>Mean target</span><b>${d.priceTarget?'$'+d.priceTarget.targetMean.toFixed(2):'—'}</b></div>
+        <div><span>Trailing P/E</span><b>${d.peTTM!=null?d.peTTM.toFixed(1)+'x':'—'}</b></div>
+        <div><span>Market cap</span><b>${d.profile.marketCapitalization?'$'+(d.profile.marketCapitalization/1000).toFixed(1)+'B':'—'}</b></div>
+        <div><span>Next earnings</span><b>${d.nextEarnings||'—'}</b></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="detail-tab-panel" data-panel="fundamentals">
+  <div class="detail-section-title"><span class="kicker">Fundamentals</span><h3>Quality, valuation and profitability</h3></div>
+  <div class="detail-fund-grid">
+    ${detailMetric('P/B',d.fund.pb!=null?d.fund.pb.toFixed(2)+'x':'—')}
+    ${detailMetric('P/S',d.fund.ps!=null?d.fund.ps.toFixed(2)+'x':'—')}
+    ${detailMetric('ROE',d.fund.roe!=null?d.fund.roe.toFixed(1)+'%':'—')}
+    ${detailMetric('ROA',d.fund.roa!=null?d.fund.roa.toFixed(1)+'%':'—')}
+    ${detailMetric('Current ratio',d.fund.currentRatio!=null?d.fund.currentRatio.toFixed(2):'—')}
+    ${detailMetric('Debt / Equity',d.fund.debtEquity!=null?d.fund.debtEquity.toFixed(1)+'%':'—')}
+    ${detailMetric('Gross margin',d.fund.grossMargin!=null?d.fund.grossMargin.toFixed(1)+'%':'—')}
+    ${detailMetric('Operating margin',d.fund.opMargin!=null?d.fund.opMargin.toFixed(1)+'%':'—')}
+    ${detailMetric('Net margin',d.fund.netMargin!=null?d.fund.netMargin.toFixed(1)+'%':'—')}
+    ${detailMetric('Beta',d.fund.beta!=null?d.fund.beta.toFixed(2):'—')}
+    ${detailMetric('Dividend yield',d.fund.divYield!=null?d.fund.divYield.toFixed(2)+'%':'—')}
+    ${detailMetric('52-week range',(d.fund.w52l!=null&&d.fund.w52h!=null)?'$'+d.fund.w52l.toFixed(0)+' – $'+d.fund.w52h.toFixed(0):'—')}
+  </div>
+  <div class="detail-note">Forward P/E remains an external check because free API coverage is inconsistent. <a href="https://stockanalysis.com/stocks/${r.t}/" target="_blank" rel="noopener">Open Stock Analysis ↗</a></div>
+</div>
+
+<div class="detail-tab-panel" data-panel="earnings">
+  <div class="detail-section-title"><span class="kicker">Earnings</span><h3>Last four reported quarters</h3></div>
+  <div class="wrap"><table class="detail-table"><thead><tr><th style="text-align:left">Period</th><th>Actual EPS</th><th>Estimate</th><th>Surprise</th></tr></thead><tbody>${epsRows||'<tr><td colspan="4">No earnings history returned.</td></tr>'}</tbody></table></div>
+  <div class="detail-note">Next scheduled earnings: <b>${d.nextEarnings||'not currently returned'}</b>.</div>
+</div>
+
+<div class="detail-tab-panel" data-panel="news">
+  <div class="detail-section-title"><span class="kicker">News & context</span><h3>Recent company headlines</h3></div>
+  <div class="news-grid">${newsCards}</div>
+</div>
+
+<div class="detail-tab-panel" data-panel="risk">
+  <div class="detail-two-col">
+    <div class="detail-panel-card">
+      <span class="kicker">Risk synthesis</span><h3>What the current setup is saying</h3>
+      <ul class="risk-list">${riskNotes.map(x=>'<li>'+x+'</li>').join('')}</ul>
+    </div>
+    <div class="detail-panel-card">
+      <span class="kicker">Credit / distress</span><h3>Balance-sheet checks</h3>
+      <div class="snapshot-list">
+        <div><span>Debt / EBITDA</span><b>${roic&&roic.debtEbitda!=null?roic.debtEbitda.toFixed(2)+'x':'—'}</b></div>
+        <div><span>Altman Z-score</span><b>${roic&&roic.altmanZ!=null?roic.altmanZ.toFixed(2):'—'}</b></div>
+        <div><span>Structural risk</span><b class="${structRisk>=0?'up':'dn'}">${(structRisk*100).toFixed(1)}%</b></div>
+        <div><span>Distance to 200 SMA</span><b class="${distFloor>=0?'up':'dn'}">${(distFloor*100).toFixed(1)}%</b></div>
+      </div>
+      ${roicErr?'<div class="detail-note">roic.ai: '+roicErr+'</div>':(!roicKey?'<div class="detail-note">Add your optional roic.ai key to populate credit metrics.</div>':'')}
+    </div>
+  </div>
+</div>
+
+<div class="detail-disclaimer">Signals combine price structure and momentum. Fundamentals, news, earnings and balance-sheet metrics should be considered before acting.</div>
+</section>`;
+}catch(e){
+console.error('showInfo error for',r.t,e);
+panel.innerHTML='<div class="dcard">⚠ Failed to load '+r.t+' details: '+e.message+'<br>Check the API keys above and try again.</div>';
+panel.scrollIntoView({behavior:'smooth',block:'center'});
+}
+}
+async function addTicker(){
+const t=document.getElementById('tkIn').value.trim().toUpperCase();
+if(!t)return;
+const key=document.getElementById('fmpKey').value.trim();
+const target=parseFloat(document.getElementById('tgtIn').value)||null;
+const stop=parseFloat(document.getElementById('stopIn').value)||null;
+let existing=list.find(r=>r.t===t);
+let base=existing||{t,lst:'Custom',live:0,s200:0,s50:0,rsi:50,vol:1};
+if(target)base.target=target; if(stop)base.stop=stop;
+if(key){
+document.getElementById('fetchNote').textContent='Fetching '+t+'…';
+try{
+const d=await fetchTD(t,key);
+Object.assign(base,d);
+document.getElementById('fetchNote').textContent='Live data loaded for '+t+' just now.';
+}catch(e){
+document.getElementById('fetchNote').textContent='Failed for '+t+': '+e.message;
+}
+}
+if(!existing)list.push(base);
+renderList();
+}
+async function refreshAll(){
+const key=document.getElementById('fmpKey').value.trim();
+if(!key){document.getElementById('fetchNote').textContent='Paste your Twelve Data key first.';return;}
+let errs=[];
+for(const r of list){try{Object.assign(r,await fetchTD(r.t,key));}catch(e){errs.push(r.t+': '+e.message);}}
+renderList();
+document.getElementById('fetchNote').textContent=errs.length? ('Some failed — '+errs.join(' | ')) : 'All rows refreshed successfully.';
+}
+
+document.getElementById('recs').innerHTML=[
+"\"50 SMA\" and \"200 SMA\" replicate your sheet's non-standard windows (trailing ~75 and ~300 calendar days, not strict trading-day SMAs) — a textbook 50/200 SMA would use trading days and will read slightly differently.",
+"RSI(14) here uses standard Wilder smoothing on daily closes; Vol Strength is the ticker's (volume ÷ avg volume) divided by SPY's own same ratio, so >1 means it's trading unusually heavy relative to the broad market that day, not in absolute terms.",
+"The STRIKE/Buy-zone/Watch/Expensive/Danger labels are a direct translation of your sheet's colour logic (price vs 200 SMA + RSI threshold), not a fundamentals check — cheap-and-oversold isn't the same as cheap-and-good.",
+"None of this checks upcoming earnings dates automatically — click \"Info\" on any row to pull the next scheduled earnings date (flagged if within 10 days), last 4 quarters of EPS actual-vs-estimate, sector/market cap, and recent headlines via a free Finnhub key. A 'STRIKE' on pure technicals right before an earnings print carries real event risk the SMA/RSI setup knows nothing about.",
+"Headlines shown in the Info panel are just headlines — read the linked article before treating a title as the full story; sentiment and nuance don't survive in eight words.",
+"EPS surprise history tells you how a company has recently performed vs. Street expectations, not its valuation — a stock can beat every quarter and still be priced for perfection (or vice versa). Pair it with a look at the P/E, growth rate, and debt load before sizing a position.",
+"P/E (trailing) and analyst consensus/price-target come from Finnhub's basic-financials and recommendation endpoints — if a field shows \"—\" in the Info panel, that account scope isn't available on your current key, not that the value is zero.",
+"Forward P/E is deliberately not automated anymore — Finnhub, FMP, and Alpha Vantage all gated or rate-limited it on their free tiers in turn. The Info panel links out to a free site to check it manually instead, which is slower but won't randomly break.",
+"Analyst consensus shows what sell-side analysts think, not why — the same 'Buy' rating can mean very different things depending on their price target and time horizon, so weigh it alongside the target price and recent headlines, not on its own.",
+"The Fundamentals grid (P/B, P/S, ROE, ROA, margins, debt/equity, beta, dividend yield, 52-week range) comes from the same Finnhub call as trailing P/E — no new key needed, but field coverage varies a little by company, so an occasional \"—\" is normal, not a bug.",
+"Debt/EBITDA and Altman Z-Score (roic.ai, optional key) are credit/distress signals, not valuation signals — a low-risk balance sheet can still be an expensive stock, and vice versa. Use them alongside the other panels, not instead of them.",
+"Watchlist targets and stops you add are static until you change them — nothing here re-bases a target automatically if the stock re-rates structurally (e.g. after a split or a multi-year re-rating).",
+"Vol Strength and RSI both need real historical price/volume data, so they're only as good as your Twelve Data key's data quality and rate limit — cross-check anything close to a decision against a second source."
+].map(r=>`<li>${r}</li>`).join('');
+</script>
+</body>
+</html>
++Number(v||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function portfolioPrice(h){
+  const row=list?.find?.(r=>r.t===h.t);
+  return Number(h.live||row?.live||h.avgCost||0);
+}
+function renderPortfolio(){
+  const rows=portfolio.map(h=>({...h,live:portfolioPrice(h)}));
+  const totalValue=rows.reduce((s,h)=>s+h.shares*h.live,0);
+  const totalCost=rows.reduce((s,h)=>s+h.shares*h.avgCost,0);
+  const pnl=totalValue-totalCost;
+  const pnlPct=totalCost?100*pnl/totalCost:0;
+  const sorted=[...rows].sort((a,b)=>(b.shares*b.live)-(a.shares*a.live));
+  const top=sorted[0];
+  const topPct=top&&totalValue?100*(top.shares*top.live)/totalValue:0;
+  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+  set('pfValue',money(totalValue));
+  set('pfValueMeta',rows.length?rows.length+' position'+(rows.length===1?'':'s'):'No holdings yet');
+  set('pfCost',money(totalCost));
+  set('pfPnl',(pnl>=0?'+':'')+money(pnl));
+  set('pfPnlPct',(pnl>=0?'+':'')+pnlPct.toFixed(1)+'%');
+  set('pfTop',top?top.t:'—');
+  set('pfTopPct',top?topPct.toFixed(1)+'% concentration':'0.0% concentration');
+  const pnlEl=document.getElementById('pfPnl'); if(pnlEl)pnlEl.className=pnl>=0?'up':'dn';
+  const countEl=document.getElementById('pfCount');if(countEl)countEl.textContent=rows.length+' position'+(rows.length===1?'':'s');
+  const body=document.getElementById('portfolioTable')?.querySelector('tbody');
+  if(body){
+    body.innerHTML=rows.map((h,i)=>{
+      const value=h.shares*h.live,cost=h.shares*h.avgCost,gain=value-cost,ret=cost?100*gain/cost:0,weight=totalValue?100*value/totalValue:0;
+      return `<tr>
+        <td><b class="mono">${h.t}</b></td>
+        <td class="mono">${h.shares.toLocaleString(undefined,{maximumFractionDigits:4})}</td>
+        <td class="mono">${money(h.avgCost)}</td>
+        <td class="mono">${money(h.live)}</td>
+        <td class="mono">${money(value)}</td>
+        <td class="mono ${gain>=0?'up':'dn'}">${gain>=0?'+':''}${money(gain)}</td>
+        <td class="mono ${ret>=0?'up':'dn'}">${ret>=0?'+':''}${ret.toFixed(1)}%</td>
+        <td class="mono">${weight.toFixed(1)}%</td>
+        <td><button class="ghost compact" onclick="removeHolding(${i})">✕</button></td>
+      </tr>`;
+    }).join('')||'<tr><td colspan="9" class="empty-state">Add your first holding above.</td></tr>';
+  }
+  const bars=document.getElementById('allocationBars');
+  if(bars){
+    bars.innerHTML=sorted.map(h=>{
+      const v=h.shares*h.live,w=totalValue?100*v/totalValue:0;
+      return `<div class="allocation-row"><div class="allocation-label"><b>${h.t}</b><span>${w.toFixed(1)}%</span></div><div class="allocation-track"><i style="width:${Math.max(2,w)}%"></i></div><div class="allocation-value">${money(v)}</div></div>`;
+    }).join('')||'<div class="detail-empty">Allocation appears once holdings are added.</div>';
+  }
+}
+function addHolding(){
+  const t=document.getElementById('pfTicker').value.trim().toUpperCase();
+  const shares=parseFloat(document.getElementById('pfShares').value);
+  const avgCost=parseFloat(document.getElementById('pfAvgCost').value);
+  if(!t||!Number.isFinite(shares)||shares<=0||!Number.isFinite(avgCost)||avgCost<0){
+    document.getElementById('pfNote').textContent='Enter a ticker, number of shares, and average cost.';
+    return;
+  }
+  const existing=portfolio.find(h=>h.t===t);
+  const current=list.find(r=>r.t===t);
+  if(existing){existing.shares=shares;existing.avgCost=avgCost;if(current)existing.live=current.live;}
+  else portfolio.push({t,shares,avgCost,live:current?.live||avgCost});
+  savePortfolio();renderPortfolio();
+  document.getElementById('pfNote').textContent=t+' holding saved on this device.';
+}
+function removeHolding(i){
+  portfolio.splice(i,1);savePortfolio();renderPortfolio();
+}
+async function refreshPortfolioPrices(){
+  const key=document.getElementById('fmpKey').value.trim();
+  if(!key){document.getElementById('pfNote').textContent='Paste your Twelve Data API key in Stock analysis first.';return;}
+  const note=document.getElementById('pfNote');
+  note.textContent='Refreshing portfolio prices…';
+  let failed=[];
+  for(const h of portfolio){
+    try{
+      const r=await fetch(`https://api.twelvedata.com/quote?symbol=${h.t}&apikey=${key}`);
+      const q=await r.json();
+      if(!r.ok||q.status==='error'||q.code)throw new Error(q.message||'quote failed');
+      const px=parseFloat(q.close);
+      if(!Number.isFinite(px))throw new Error('no live price');
+      h.live=px;
+      const watch=list.find(x=>x.t===h.t);if(watch)watch.live=px;
+    }catch(e){failed.push(h.t);}
+  }
+  savePortfolio();renderPortfolio();renderList();
+  note.textContent=failed.length?'Updated with failures: '+failed.join(', '):'Portfolio prices refreshed just now.';
+}
+
 
 // ---- watchlist / DCA data, cached fallback values from your sheet — a starting set, add/remove freely ----
 let list=[
