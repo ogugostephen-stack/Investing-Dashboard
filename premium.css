@@ -520,3 +520,13 @@ tbody tr:hover td{background:rgba(214,177,95,.028)!important}
   .hero p{font-size:13px}
   .section-head h2{font-size:18px!important}
 }
+
+@media(max-width:900px){
+  .topbar{align-items:flex-start;flex-direction:column;gap:10px}
+  .topnav{
+    display:flex!important;width:100%;overflow-x:auto;flex-wrap:nowrap;
+    scrollbar-width:none;padding:4px
+  }
+  .topnav::-webkit-scrollbar{display:none}
+  .topnav a,.api-pill{flex:0 0 auto}
+}
