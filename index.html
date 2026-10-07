@@ -69,13 +69,20 @@ a:hover{border-bottom-color:var(--gold)}
 <body>
 <header class="topbar">
   <div class="brand">
-    <div class="brand-mark">GI</div>
+    <div class="brand-mark" aria-label="Goat Investor logo">
+    <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">
+      <path d="M19 20c-5-6-9-7-12-6 3 2 5 5 6 10-4 2-7 6-8 11 5-4 9-5 13-4-1 5 0 10 3 14 3 4 7 6 11 6s8-2 11-6c3-4 4-9 3-14 4-1 8 0 13 4-1-5-4-9-8-11 1-5 3-8 6-10-3-1-7 0-12 6-4-3-8-5-13-5s-9 2-13 5Z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/>
+      <path d="M24 30c2-2 5-3 8-3s6 1 8 3M24 38c2 4 5 6 8 6s6-2 8-6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+      <circle cx="23" cy="33" r="1.5" fill="currentColor"/><circle cx="41" cy="33" r="1.5" fill="currentColor"/>
+    </svg>
+  </div>
     <div class="brand-copy"><strong>Goat Investor</strong><span>Private market intelligence desk</span></div>
   </div>
   <nav class="topnav">
-    <a href="#analysis">Analysis</a>
+    <a href="#analysis">Stock analysis</a>
     <a href="#reference">Methodology</a>
     <a href="#caveats">Risk notes</a>
+    <span class="api-pill">● APIs ready</span>
   </nav>
 </header>
 
@@ -103,7 +110,10 @@ a:hover{border-bottom-color:var(--gold)}
 </div>
 
 <section id="analysis">
-<span class="kicker">Analysis</span><h2>Ticker analysis tool</h2>
+<div class="section-head">
+  <div><span class="kicker">Analysis desk</span><h2>Stock analysis workspace</h2></div>
+  <div class="section-note">Live price · SMA · RSI · fundamentals · earnings · news</div>
+</div>
 <div id="signalSummary" class="row" style="margin-bottom:14px"></div>
 <div class="row">
 <input id="fmpKey" type="password" placeholder="Twelve Data API key (kept in this tab only)" style="width:230px">
