@@ -288,3 +288,43 @@ button.compact{padding:6px 8px!important;font-size:11px!important}
   .portfolio-entry{display:grid;grid-template-columns:1fr 1fr}
   .portfolio-entry input,.portfolio-entry #pfTicker,.portfolio-entry button{width:100%}
 }
+
+/* Stock comparison desk */
+.compare-section{border-color:rgba(214,177,95,.24)!important}
+.compare-entry{display:grid;grid-template-columns:repeat(4,minmax(110px,1fr)) auto auto;gap:8px;margin-bottom:6px}
+.compare-entry input{width:100%}
+.compare-results{margin-top:16px}
+.compare-empty,.compare-loading{display:grid;place-items:center;text-align:center;min-height:180px;border:1px dashed rgba(255,255,255,.08);border-radius:12px;color:var(--lux-muted);gap:6px;padding:24px}
+.compare-empty strong{color:var(--lux-text);font-size:15px}
+.compare-empty span{font-size:11px;max-width:520px}
+.compare-empty-mark{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;border:1px solid rgba(214,177,95,.2);color:var(--lux-gold-2);font-size:20px;background:rgba(214,177,95,.05)}
+.compare-loading{display:flex;gap:12px;min-height:100px}
+.compare-callouts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.compare-callouts>div{padding:13px 14px;border:1px solid rgba(255,255,255,.055);border-radius:10px;background:rgba(255,255,255,.015)}
+.compare-callouts span{display:block;color:var(--lux-muted);font-size:10px;text-transform:uppercase;letter-spacing:.07em}
+.compare-callouts strong{display:block;margin-top:7px;font:600 18px 'IBM Plex Mono',monospace;color:var(--lux-gold-2)}
+.compare-card-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}
+.compare-stock-card{border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:15px;background:linear-gradient(180deg,rgba(255,255,255,.024),rgba(255,255,255,.01));min-width:0}
+.compare-stock-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.compare-ticker{font:700 18px/1 'IBM Plex Mono',monospace}
+.compare-company{font-size:10px;color:var(--lux-muted);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
+.compare-price{font:600 24px/1.1 'IBM Plex Mono',monospace;margin:18px 0}
+.compare-mini-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.compare-mini-grid div{padding-top:8px;border-top:1px solid rgba(255,255,255,.05)}
+.compare-mini-grid span{display:block;color:var(--lux-muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
+.compare-mini-grid b{display:block;margin-top:4px;font:600 11px 'IBM Plex Mono',monospace}
+.compare-matrix{border:1px solid rgba(255,255,255,.055);border-radius:12px;overflow:auto}
+.compare-matrix table{min-width:720px}
+.compare-matrix thead{position:static!important}
+.compare-metric-name{text-align:left!important;color:var(--lux-muted);font-weight:600}
+.compare-best{position:relative;background:rgba(214,177,95,.035)!important;color:var(--lux-gold-2)}
+.best-chip{display:block;margin-top:4px;font-size:8px;letter-spacing:.05em;text-transform:uppercase;color:var(--lux-gold)}
+@media(max-width:1100px){
+  .compare-entry{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .compare-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .compare-callouts{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:600px){
+  .compare-entry{grid-template-columns:1fr 1fr}
+  .compare-card-grid,.compare-callouts{grid-template-columns:1fr}
+}
